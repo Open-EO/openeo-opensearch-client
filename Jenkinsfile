@@ -3,5 +3,6 @@
 @Library('lib')_
 
 javaPipeline {
-  package_name = 'openeo-opensearch-client'
+  package_name  = 'openeo-opensearch-client'
+  maven_version = '3.5.4'
 }
