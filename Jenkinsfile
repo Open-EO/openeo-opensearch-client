@@ -4,5 +4,5 @@
 
 javaPipeline {
   package_name  = 'openeo-opensearch-client'
-  maven_version = '3.5.4'
+  maven_version = '3.6.3'
 }
