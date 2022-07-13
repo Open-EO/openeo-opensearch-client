@@ -183,11 +183,11 @@ object OpenSearchResponses {
             val extent = geometry.toString().parseGeoJson[Geometry].extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =
-            if(tileIDMatcher.find()){
-              Some(tileIDMatcher.group(1))
-            }else{
-              Option.empty
-            }
+              if(tileIDMatcher.find()){
+                Some(tileIDMatcher.group(1))
+              }else{
+                Option.empty
+              }
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)

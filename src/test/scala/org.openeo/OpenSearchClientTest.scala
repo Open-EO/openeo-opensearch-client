@@ -3,7 +3,7 @@ package org.openeo
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.openeo.backends.{CreodiasClient, STACClient}
 
 import java.net.URL
@@ -21,7 +21,7 @@ class OpenSearchClientTest {
       (LocalDate.of(2019, 10, 3), LocalDate.of(2020, 1, 2)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), "hello", ""
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
@@ -36,7 +36,7 @@ class OpenSearchClientTest {
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), correlationId = "hello", "LEVEL2A"
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
@@ -57,21 +57,25 @@ class OpenSearchClientTest {
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), correlationId = "hello", "LEVEL2A"
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
     assertEquals(15,features.length)
   }
 
+  /**
+   * c-scale stac catalog is not stable
+   */
+  @Ignore
   @Test
   def testSTACGetProductsCScale(): Unit = {
     val openSearch = OpenSearchClient(new URL("https://resto.c-scale.zcu.cz/"))
 
     val features = openSearch.getProducts(
       collectionId = "S2",
-      (LocalDate.of(2020, 12, 27), LocalDate.of(2020, 12, 28)),
-      ProjectedExtent(Extent(-5, 37, -4, 38), LatLng),
+      Option.empty,
+      ProjectedExtent(Extent(-180, -90, 180, 90), LatLng),
       Map[String, Any](), correlationId = "hello", "LEVEL2A"
     )
 
@@ -121,7 +125,7 @@ class OpenSearchClientTest {
       None,
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), "hello", ""
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
@@ -136,7 +140,7 @@ class OpenSearchClientTest {
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), "hello", ""
-      )
+    )
 
     println(s"got ${features.size} features")
     val unique: mutable.Set[(Extent,ZonedDateTime)] = mutable.Set()

@@ -15,7 +15,7 @@ import scalaj.http.HttpOptions
  * @param endpoint
  */
 class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.element84.com/v0"),
-                     private val s3URLS: Boolean = true) extends OpenSearchClient {
+                 private val s3URLS: Boolean = true) extends OpenSearchClient {
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
