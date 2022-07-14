@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-@Library('lib')_
+@Library('lib@openeo_opensearch_client')_
 
 javaPipeline {
   package_name  = 'openeo-opensearch-client'
