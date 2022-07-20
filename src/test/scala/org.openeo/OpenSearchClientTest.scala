@@ -4,7 +4,8 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
-import org.openeo.backends.{CreodiasClient, STACClient}
+import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
 import java.net.URL
 import java.time.{LocalDate, ZonedDateTime}

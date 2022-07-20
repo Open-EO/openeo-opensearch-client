@@ -1,4 +1,4 @@
-package org.openeo
+package org.openeo.opensearch
 
 import _root_.io.circe.parser.decode
 import cats.syntax.either._

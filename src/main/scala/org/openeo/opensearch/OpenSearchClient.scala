@@ -1,6 +1,8 @@
-package org.openeo
+package org.openeo.opensearch
 
 import geotrellis.vector.ProjectedExtent
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
+import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
 import org.slf4j.LoggerFactory
 import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
 
@@ -13,8 +15,6 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 import scala.collection.Map
-import backends.{CreodiasClient, OscarsClient, STACClient}
-import org.openeo.OpenSearchResponses.{Feature, FeatureCollection}
 
 /**
  *

@@ -1,12 +1,11 @@
-package org.openeo.backends
+package org.openeo.opensearch.backends
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_INSTANT
-
-import org.openeo.OpenSearchClient
-import org.openeo.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
+import org.openeo.opensearch.OpenSearchClient
 import scalaj.http.HttpOptions
 
 import scala.collection.Map

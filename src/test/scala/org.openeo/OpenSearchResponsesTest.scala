@@ -4,7 +4,7 @@ import geotrellis.proj4.CRS
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
-import org.openeo.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
