@@ -1,21 +1,22 @@
 package org.openeo.opensearch.backends
 
+import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, STACCollections, STACFeatureCollection}
+import geotrellis.proj4.LatLng
+import geotrellis.vector.{Extent, ProjectedExtent}
+import scalaj.http.HttpOptions
+
 import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_DATE_TIME
 import scala.collection.Map
-import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, STACCollections, STACFeatureCollection}
-import geotrellis.proj4.LatLng
-import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.OpenSearchClient
-import scalaj.http.HttpOptions
 
 /**
  *  {'collections': ['sentinel-s2-l1c'], 'query': {'eo:cloud_cover': {'lte': '10'}, 'data_coverage': {'gt': '80'}}}
  * @param endpoint
  */
 class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.element84.com/v0"),
-                 private val s3URLS: Boolean = true) extends OpenSearchClient {
+                     private val s3URLS: Boolean = true) extends OpenSearchClient {
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],

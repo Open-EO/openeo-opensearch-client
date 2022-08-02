@@ -1,14 +1,14 @@
 package org.openeo.opensearch.backends
 
-import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
+import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.OpenSearchClient
 import scalaj.http.{Http, HttpOptions, HttpStatusException}
 
 import java.net.URL
-import java.time.{LocalDate, ZonedDateTime}
 import java.time.format.DateTimeFormatter.ISO_INSTANT
+import java.time.{LocalDate, ZonedDateTime}
 import scala.collection.Map
 
 class OscarsClient(val endpoint: URL) extends OpenSearchClient {
@@ -64,8 +64,13 @@ class OscarsClient(val endpoint: URL) extends OpenSearchClient {
       .param("bbox", Array(xMin, yMin, xMax, yMax) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
-      .params(newAttributeValues.mapValues(_.toString).toSeq)
+      .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend").contains(_)).toSeq)
       .param("clientId", clientId(correlationId))
+
+    val cloudCover = attributeValues.get("eo:cloud_cover")
+    if(cloudCover.isDefined) {
+      getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
+    }
 
     if (dateRange.isDefined) {
       getProducts = getProducts

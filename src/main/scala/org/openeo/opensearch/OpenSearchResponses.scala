@@ -5,7 +5,7 @@ import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.CRS
 import io.circe.generic.auto._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -27,7 +27,7 @@ object OpenSearchResponses {
   case class Link(href: URI, title: Option[String])
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Int],
-                     tileID: Option[String] = None){
+                     tileID: Option[String] = None, geometry: Option[Geometry] = None){
     val crs: Option[CRS] = for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -46,11 +46,10 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("date").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Map[String, Array[Link]]]
             resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Int].toOption
-            tileId = c.downField("properties").downField("acquisitionInformation").downAt(_.hcursor.downField("acquisitionParameters").succeeded).downField("acquisitionParameters").downField("tileId").as[String].toOption
+            tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
-
             Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId)
           }
         }
@@ -110,9 +109,19 @@ object OpenSearchResponses {
 
     private val TILE_PATTERN = Pattern.compile("_T([0-9]{2}[A-Z]{3})_")
     private val s3Endpoint = System.getenv().getOrDefault("AWS_S3_ENDPOINT","")//https://s3.cloudferro.com
+    private val useHTTPS = System.getenv().getOrDefault("AWS_HTTPS","YES")//https://s3.cloudferro.com
+
     private val creoClient = {
       if(s3Endpoint!="") {
-        Some(S3Client.builder.endpointOverride(new URI(s3Endpoint)).region(Region.of("RegionOne"))
+        val uri =
+        if(s3Endpoint.startsWith("http")) {
+          new URI( s3Endpoint )
+        }else if(useHTTPS == "NO"){
+          new URI( "http://" + s3Endpoint )
+        }else{
+          new URI( "https://" + s3Endpoint )
+        }
+        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne"))
           .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
       }else{
         Option.empty
@@ -140,7 +149,7 @@ object OpenSearchResponses {
 
           //reading from /eodata is extremely slow
           if(creoClient.isDefined) {
-            creoClient.get.getObject(GetObjectRequest.builder().bucket("eodata").key(s"${path.toString.replace("/eodata/","")}/manifest.safe").build())
+            creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(s"${path.toString.replace("/eodata/","")}/manifest.safe").build())
           }else{
             val url = path.replace("/eodata","https://finder.creodias.eu/files")
             val uri = new URI(url)
@@ -180,20 +189,21 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("resolution").as[Int].toOption
           } yield {
 
-            val extent = geometry.toString().parseGeoJson[Geometry].extent
+            val theGeometry = geometry.toString().parseGeoJson[Geometry]
+            val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =
-              if(tileIDMatcher.find()){
-                Some(tileIDMatcher.group(1))
-              }else{
-                Option.empty
-              }
+            if(tileIDMatcher.find()){
+              Some(tileIDMatcher.group(1))
+            }else{
+              Option.empty
+            }
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry))
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry))
             }
 
           }

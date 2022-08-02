@@ -1,8 +1,7 @@
 package org.openeo.opensearch
 
-import geotrellis.vector.ProjectedExtent
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
-import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
+import geotrellis.vector.ProjectedExtent
 import org.slf4j.LoggerFactory
 import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
 
@@ -15,6 +14,7 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 import scala.collection.Map
+import backends.{CreodiasClient, OscarsClient, STACClient}
 
 /**
  *
@@ -69,11 +69,11 @@ abstract class OpenSearchClient {
     getProducts(collectionId, dateRange, bbox, Map[String, Any](), correlationId=correlationId, processingLevel)
 
   protected def getProductsFromPage(collectionId: String,
-                                    dateRange: Option[(ZonedDateTime, ZonedDateTime)],
-                                    bbox: ProjectedExtent,
-                                    attributeValues: Map[String, Any], correlationId: String,
-                                    processingLevel: String,
-                                    page: Int): FeatureCollection
+                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                            bbox: ProjectedExtent,
+                            attributeValues: Map[String, Any], correlationId: String,
+                            processingLevel: String,
+                            page: Int): FeatureCollection
 
   def getCollections(correlationId: String = ""): Seq[Feature]
 
