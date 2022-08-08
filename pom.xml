@@ -14,6 +14,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <maven.compiler.source>15</maven.compiler.source>
         <maven.compiler.target>15</maven.compiler.target>
+        <hadoop.version>3.1.1</hadoop.version>
     </properties>
 
     <build>
@@ -70,6 +71,21 @@
                     <artifactId>jackson-core</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.locationtech.geotrellis</groupId>
+            <artifactId>geotrellis-gdal_${scala.binary.version}</artifactId>
+            <version>${geotrellis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.locationtech.geotrellis</groupId>
+            <artifactId>geotrellis-store_${scala.binary.version}</artifactId>
+            <version>${geotrellis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>${hadoop.version}</version>
         </dependency>
 
         <dependency>
