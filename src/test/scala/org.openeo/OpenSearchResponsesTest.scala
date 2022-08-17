@@ -13,7 +13,7 @@ import scala.io.{Codec, Source}
 
 class OpenSearchResponsesTest {
 
-  private val resourcePath = "/be/vito/eodata/gwcgeotrellis/opensearch/"
+  private val resourcePath = "/org/openeo/"
 
   private def loadJsonResource(classPathResourceName: String, codec: Codec = Codec.UTF8): String = {
     val fullPath = resourcePath + classPathResourceName
