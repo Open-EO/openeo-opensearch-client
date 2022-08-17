@@ -1,14 +1,15 @@
 package org.openeo.opensearch.backends
 
+import java.net.URL
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter.ISO_DATE_TIME
+
 import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, STACCollections, STACFeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import scalaj.http.HttpOptions
 
-import java.net.URL
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter.ISO_DATE_TIME
 import scala.collection.Map
 
 /**

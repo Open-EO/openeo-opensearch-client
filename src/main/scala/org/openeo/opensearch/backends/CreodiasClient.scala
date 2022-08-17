@@ -1,11 +1,12 @@
 package org.openeo.opensearch.backends
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_INSTANT
+
+import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.OpenSearchClient
 import scalaj.http.HttpOptions
 
 import scala.collection.Map
@@ -13,7 +14,6 @@ import scala.collection.Map
 object CreodiasClient extends OpenSearchClient {
   private val collections = "https://finder.creodias.eu/resto/collections.json"
   private def collection(collectionId: String) = s"https://finder.creodias.eu/resto/api/collections/$collectionId/search.json"
-  private val sentinel1_switch_date = ZonedDateTime.of(2021,2,23,0,0,0,0,ZoneId.of("UTC"))
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
@@ -48,17 +48,7 @@ object CreodiasClient extends OpenSearchClient {
       .param("maxRecords", "100")
       .param("status", "0|34|37")
       .param("dataset", "ESA-DATASET")
-      .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
-
-    val cloudCover = attributeValues.get("eo:cloud_cover")
-    if(cloudCover.isDefined) {
-      getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
-    }
-
-    val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
-    if(orbitdirection.isDefined) {
-      getProducts = getProducts.param("orbitDirection",orbitdirection.get.toString.toLowerCase)
-    }
+      .params(attributeValues.mapValues(_.toString).toSeq)
 
     if (dateRange.isDefined) {
       getProducts = getProducts
@@ -67,17 +57,7 @@ object CreodiasClient extends OpenSearchClient {
     }
 
     if( "Sentinel1".equals(collectionId)) {
-      getProducts = getProducts.param("productType","GRD")
-      if(dateRange.isDefined && !attributeValues.contains("timeliness")) {
-        //ESA decided to redefine the meaning of the timeliness property at some point
-        //https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-1-nrt-3h-and-fast24h-products
-        if(dateRange.get._1.isBefore(sentinel1_switch_date)) {
-          getProducts = getProducts.param("timeliness","Fast-24h")
-        }else{
-          getProducts = getProducts.param("timeliness","NRT-3h|Fast-24h")
-        }
-
-      }
+      getProducts = getProducts.param("timeliness","Fast-24h").param("productType","GRD")
     }
 
     val json = withRetries { execute(getProducts) }

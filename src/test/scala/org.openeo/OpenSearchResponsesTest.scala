@@ -1,18 +1,19 @@
 package org.openeo
 
+import java.io.{PrintWriter, StringWriter}
+import java.net.URI
+
+import org.openeo.opensearch.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
 import geotrellis.proj4.CRS
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
-import org.openeo.opensearch.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
 
-import java.io.{PrintWriter, StringWriter}
-import java.net.URI
 import scala.io.{Codec, Source}
 
 class OpenSearchResponsesTest {
 
-  private val resourcePath = "/org/openeo/"
+  private val resourcePath = "/be/vito/eodata/gwcgeotrellis/opensearch/"
 
   private def loadJsonResource(classPathResourceName: String, codec: Codec = Codec.UTF8): String = {
     val fullPath = resourcePath + classPathResourceName

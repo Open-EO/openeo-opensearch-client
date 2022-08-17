@@ -1,11 +1,11 @@
 package org.openeo
 
+import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 import org.openeo.opensearch.OpenSearchClient
-import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
 import java.net.URL
 import java.time.{LocalDate, ZonedDateTime}
@@ -21,11 +21,10 @@ class OpenSearchClientTest {
       collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
       (LocalDate.of(2019, 10, 3), LocalDate.of(2020, 1, 2)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->50.0), "hello", ""
+      Map[String, Any](), "hello", ""
       )
 
     println(s"got ${features.size} features")
-    assertTrue(features.size<160)
     assertTrue(features.nonEmpty)
   }
 
@@ -37,19 +36,17 @@ class OpenSearchClientTest {
       collectionId = "Sentinel2",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->90.0), correlationId = "hello", "LEVEL2A"
+      Map[String, Any](), correlationId = "hello", "LEVEL2A"
       )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertTrue(features.size<8)
     val filterFeatures = features.filter(_.id.contains("31UDT"))
     assertTrue(filterFeatures.nonEmpty)
     val aFeature = filterFeatures.head
     val band02 = aFeature.links.filter(_.title.get.contains("B02_10m"))
     assertTrue(band02.nonEmpty)
     assertEquals("31UDT",aFeature.tileID.get)
-    assertTrue(aFeature.geometry.isDefined)
   }
 
   @Test
