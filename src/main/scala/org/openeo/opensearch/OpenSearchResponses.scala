@@ -3,7 +3,7 @@ package org.openeo.opensearch
 import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
-import geotrellis.proj4.{CRS, LatLng}
+import geotrellis.proj4.CRS
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
@@ -27,7 +27,7 @@ object OpenSearchResponses {
   case class Link(href: URI, title: Option[String])
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
-                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = Some(LatLng)){
+                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
