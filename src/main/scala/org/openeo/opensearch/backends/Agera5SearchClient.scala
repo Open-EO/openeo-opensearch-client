@@ -71,7 +71,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
 
     val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map{ case (date: ZonedDateTime, path: String, source: GeoTiffRasterSource) =>
       val links = getBandFiles(path).map { case (file, band) => Link(URI.create(s"""$file"""), Some(band)) }
-      OpenSearchResponses.Feature(s"${path}", source.extent, date, links.toArray, Some(source.gridExtent.cellSize.width.toInt), None)
+      OpenSearchResponses.Feature(s"${path}", source.extent, date, links.toArray, Some(source.gridExtent.cellSize.width), None,None, crs = Some(crs))
     }
 
     features.toSeq

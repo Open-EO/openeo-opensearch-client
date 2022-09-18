@@ -3,7 +3,7 @@ package org.openeo.opensearch
 import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
-import geotrellis.proj4.CRS
+import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
@@ -26,12 +26,12 @@ object OpenSearchResponses {
 
   case class Link(href: URI, title: Option[String])
 
-  case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Int],
-                     tileID: Option[String] = None, geometry: Option[Geometry] = None){
-    val crs: Option[CRS] = for {
+  case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
+                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = Some(LatLng)){
+    crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
-    } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt)
+    } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
   }
 
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
@@ -45,7 +45,7 @@ object OpenSearchResponses {
             bbox <- c.downField("bbox").as[Array[Double]]
             nominalDate <- c.downField("properties").downField("date").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Map[String, Array[Link]]]
-            resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Int].toOption
+            resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Double].toOption
             tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
@@ -69,7 +69,7 @@ object OpenSearchResponses {
             bbox <- c.downField("bbox").as[Array[Double]]
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
             links <- c.downField("assets").as[Map[String, Link]]
-            resolution = c.downField("properties").downField("gsd").as[Int].toOption
+            resolution = c.downField("properties").downField("gsd").as[Double].toOption
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
@@ -186,7 +186,7 @@ object OpenSearchResponses {
             geometry <- c.downField("geometry").as[Json]
             nominalDate <- c.downField("properties").downField("startDate").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Array[Link]]
-            resolution = c.downField("properties").downField("resolution").as[Int].toOption
+            resolution = c.downField("properties").downField("resolution").as[Double].toOption
           } yield {
 
             val theGeometry = geometry.toString().parseGeoJson[Geometry]
