@@ -21,7 +21,7 @@ class OpenSearchClientTest {
       collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
       (LocalDate.of(2019, 10, 3), LocalDate.of(2020, 1, 2)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->50.0), "hello", ""
+      Map[String, Any]("eo:cloud_cover"->50.0,"resolution"->10), "hello", ""
       )
 
     println(s"got ${features.size} features")
