@@ -57,6 +57,8 @@ class OpenSearchResponsesTest {
     assertEquals("36MZE", features.head.tileID.get)
     assertEquals(CRS.fromEpsgCode(32736),features.head.crs.get)
 
+    assertTrue(features.exists(_.geometry.isDefined))
+
     val Some(dataUrl) = features.head.links
       .find(_.title contains "SCENECLASSIFICATION_20M")
       .map(_.href)

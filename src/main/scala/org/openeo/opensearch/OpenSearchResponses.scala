@@ -50,7 +50,8 @@ object OpenSearchResponses {
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId)
+            val geometry = c.downField("geometry").as[Geometry].toOption
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId,geometry=geometry)
           }
         }
       }
@@ -73,6 +74,7 @@ object OpenSearchResponses {
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
+            val geometry = c.downField("geometry").as[Geometry].toOption
 
             val harmonizedLinks = links.map { t =>
               val href = t._2.href
@@ -84,7 +86,7 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution,None)
+            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution,None,geometry=geometry)
           }
         }
       }
