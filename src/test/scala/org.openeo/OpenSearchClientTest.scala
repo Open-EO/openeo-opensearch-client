@@ -42,7 +42,7 @@ class OpenSearchClientTest {
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertTrue(features.size<8)
+    assertTrue(features.size<9)
     val filterFeatures = features.filter(_.id.contains("31UDT"))
     assertTrue(filterFeatures.nonEmpty)
     val aFeature = filterFeatures.head
