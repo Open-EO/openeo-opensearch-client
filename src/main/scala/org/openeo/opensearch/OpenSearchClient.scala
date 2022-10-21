@@ -1,7 +1,8 @@
 package org.openeo.opensearch
 
-import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import geotrellis.vector.ProjectedExtent
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
+import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
 import org.slf4j.LoggerFactory
 import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
 
@@ -14,7 +15,6 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 import scala.collection.Map
-import backends.{CreodiasClient, OscarsClient, STACClient}
 
 /**
  *
@@ -26,12 +26,12 @@ object OpenSearchClient {
   private val requestCounter = new AtomicLong
 
   // = new URL("http://oscars-01.vgt.vito.be:8080")
-  def apply(endpoint:URL):OpenSearchClient = {
+  def apply(endpoint:URL, isUTM:Boolean = false):OpenSearchClient = {
     endpoint.toString match {
       case s if s.contains("creo") => CreodiasClient
       case s if s.contains("aws") => new STACClient(endpoint)
       case s if s.contains("c-scale") => new STACClient(endpoint, false)
-      case _ => new OscarsClient(endpoint)
+      case _ => new OscarsClient(endpoint, isUTM)
     }
 
   }
