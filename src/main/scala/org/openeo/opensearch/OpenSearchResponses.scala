@@ -4,6 +4,7 @@ import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.CRS
+import geotrellis.proj4.util.UTM
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
@@ -51,7 +52,14 @@ object OpenSearchResponses {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
             val geometry = c.downField("geometry").as[Geometry].toOption
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId,geometry=geometry)
+            val crs =
+            if(id.contains("IW_GRDH_SIGMA0")){
+              //this is ugly, but not having a crs is worse, should be fixed in the catalogs
+              Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
+            }else{
+              None
+            }
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId,geometry=geometry,crs = crs)
           }
         }
       }
