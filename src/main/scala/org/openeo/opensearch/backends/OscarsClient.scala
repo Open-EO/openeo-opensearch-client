@@ -1,9 +1,9 @@
 package org.openeo.opensearch.backends
 
-import org.openeo.opensearch.OpenSearchClient
-import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
+import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import scalaj.http.{Http, HttpOptions, HttpStatusException}
 
 import java.net.URL
@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter.ISO_INSTANT
 import java.time.{LocalDate, ZonedDateTime}
 import scala.collection.Map
 
-class OscarsClient(val endpoint: URL) extends OpenSearchClient {
+class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSearchClient {
 
   def getStartAndEndDate(collectionId: String, attributeValues: Map[String, Any] = Map()): Option[(LocalDate, LocalDate)] = {
     def getFirstProductWithSortKey(key: String) = {
@@ -79,7 +79,7 @@ class OscarsClient(val endpoint: URL) extends OpenSearchClient {
     }
 
     val json = withRetries { execute(getProducts) }
-    FeatureCollection.parse(json)
+    FeatureCollection.parse(json,isUTM)
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {

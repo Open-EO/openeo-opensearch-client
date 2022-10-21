@@ -38,7 +38,7 @@ object OpenSearchResponses {
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
-    def parse(json: String): FeatureCollection = {
+    def parse(json: String, isUTM: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -53,7 +53,7 @@ object OpenSearchResponses {
             val extent = Extent(xMin, yMin, xMax, yMax)
             val geometry = c.downField("geometry").as[Geometry].toOption
             val crs =
-            if(id.contains("IW_GRDH_SIGMA0")){
+            if(isUTM && tileId.isEmpty){
               //this is ugly, but not having a crs is worse, should be fixed in the catalogs
               Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
             }else{
