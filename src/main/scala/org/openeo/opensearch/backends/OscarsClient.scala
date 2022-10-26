@@ -79,7 +79,15 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     }
 
     val json = withRetries { execute(getProducts) }
-    FeatureCollection.parse(json,isUTM)
+    val resultCollection = FeatureCollection.parse(json, isUTM)
+    if(dateRange.isDefined) {
+      //oscars actually manages to return features that are outside of the daterange for coherence
+      val features = resultCollection.features.filter(f=>f.nominalDate.isAfter(dateRange.get._1) && f.nominalDate.isBefore(dateRange.get._2.plusDays(1)) )
+      FeatureCollection(resultCollection.itemsPerPage,features)
+    }else{
+      resultCollection
+    }
+
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
