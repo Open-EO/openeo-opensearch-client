@@ -47,17 +47,24 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("date").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Map[String, Array[Link]]]
             resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Double].toOption
+            maybeCRS = c.downField("properties").downField("productInformation").downField("referenceSystemIdentifier").as[String].toOption
             tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
             val geometry = c.downField("geometry").as[Geometry].toOption
+            val prefix = "https://www.opengis.net/def/crs/EPSG/0/"
             val crs =
             if(isUTM && tileId.isEmpty){
               //this is ugly, but not having a crs is worse, should be fixed in the catalogs
               Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
-            }else{
-              None
+            }else {
+              if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
+                val epsg = maybeCRS.get.substring(prefix.length)
+                Some(CRS.fromEpsgCode(epsg.toInt))
+              } else {
+                None
+              }
             }
             Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId,geometry=geometry,crs = crs)
           }

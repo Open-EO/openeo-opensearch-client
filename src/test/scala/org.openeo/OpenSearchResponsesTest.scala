@@ -1,6 +1,6 @@
 package org.openeo
 
-import geotrellis.proj4.CRS
+import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
@@ -52,7 +52,7 @@ class OpenSearchResponsesTest {
     val productsResponse = loadJsonResource("oscarsProductsResponse.json")
     val features = FeatureCollection.parse(productsResponse).features
 
-    assertEquals(1, features.length)
+    assertEquals(2, features.length)
     assertEquals(Extent(35.6948436874, -0.991331687854, 36.6805874343, 0), features.head.bbox)
     assertEquals("36MZE", features.head.tileID.get)
     assertEquals(CRS.fromEpsgCode(32736),features.head.crs.get)
@@ -66,6 +66,8 @@ class OpenSearchResponsesTest {
     assertEquals(new URI("https://oscars-dev.vgt.vito.be/download" +
                            "/CGS_S2_FAPAR/2019/11/28/S2A_20191128T075251Z_36MZE_CGS_V102_000/S2A_20191128T075251Z_36MZE_FAPAR_V102/10M" +
                            "/S2A_20191128T075251Z_36MZE_SCENECLASSIFICATION_20M_V102.tif"), dataUrl)
+
+    assertEquals(LatLng,features(1).crs.get)
   }
 
   @Test
