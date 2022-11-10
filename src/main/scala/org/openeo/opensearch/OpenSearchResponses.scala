@@ -8,6 +8,7 @@ import geotrellis.proj4.util.UTM
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
+import org.slf4j.LoggerFactory
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -22,6 +23,8 @@ import javax.net.ssl.HttpsURLConnection
 import scala.xml.{Node, XML}
 
 object OpenSearchResponses {
+
+  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
   implicit val decodeUrl: Decoder[URI] = Decoder.decodeString.map(URI.create)
   implicit val decodeDate: Decoder[ZonedDateTime] = Decoder.decodeString.map(s => ZonedDateTime.parse(s.split('/')(0)))
 
@@ -60,8 +63,14 @@ object OpenSearchResponses {
               Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
             }else {
               if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
-                val epsg = maybeCRS.get.substring(prefix.length)
-                Some(CRS.fromEpsgCode(epsg.toInt))
+                try {
+                  val epsg = maybeCRS.get.substring(prefix.length)
+                  Some(CRS.fromEpsgCode(epsg.toInt))
+
+                }catch {
+                  case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
+                    None
+                }
               } else {
                 None
               }
