@@ -13,7 +13,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
-import java.io.{FileInputStream, FileNotFoundException}
+import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
 import java.net.URI
 import java.nio.file.Paths
@@ -158,49 +158,77 @@ object OpenSearchResponses {
       "TRUE".equals(getenv("AWS_DIRECT"))
     }
 
-    private def getFilePathsFromManifest(path: String): Seq[Link] = {
+    def loadMetadata(path:String, metadatafile:String):InputStream = {
       var gdalPrefix = ""
-
       val inputStream = if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
 
         val uri = new URI(path)
-        uri.resolve(s"${uri.getPath}/manifest.safe").toURL
+        return uri.resolve(s"${uri.getPath}/${metadatafile}").toURL
           .openConnection.asInstanceOf[HttpsURLConnection]
           .getInputStream
       } else {
         gdalPrefix = if (getAwsDirect()) "/vsis3" else ""
 
-        if(path.startsWith("/eodata")) {
+        if (path.startsWith("/eodata")) {
 
           //reading from /eodata is extremely slow
-          if(creoClient.isDefined) {
-            creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(s"${path.toString.replace("/eodata/","")}/manifest.safe").build())
-          }else{
-            val url = path.replace("/eodata","https://finder.creodias.eu/files")
+          if (creoClient.isDefined) {
+            return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(s"${path.toString.replace("/eodata/", "")}/${metadatafile}").build())
+          } else {
+            val url = path.replace("/eodata", "https://finder.creodias.eu/files")
             val uri = new URI(url)
             try {
-              uri.resolve(s"${uri.getPath}/manifest.safe").toURL
-                .openConnection.asInstanceOf[HttpsURLConnection]
-                .getInputStream
+              return uri.resolve(s"${uri.getPath}/$metadatafile").toURL
+                .openConnection.getInputStream
             } catch {
-              case e: FileNotFoundException => return Seq.empty[Link]
+              case e: FileNotFoundException => return null
             }
           }
 
-        }else{
-          new FileInputStream(Paths.get(path, "manifest.safe").toFile)
+        } else {
+          return new FileInputStream(Paths.get(path, metadatafile).toFile)
         }
       }
+      return inputStream
+    }
 
+    private def getFilePathsFromManifest(path: String): Seq[Link] = {
+
+      var gdalPrefix = ""
+      val inputStream: InputStream = loadMetadata(path,"manifest.safe")
+      if(inputStream == null) {
+        return Seq.empty[Link]
+      }
       val xml = XML.load(inputStream)
-
 
       (xml \\ "dataObject" )
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
           Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${Paths.get(fileLocation.toString).normalize().toString}"),Some(title.toString))
+        })
+    }
+
+    /**
+     * Creo catalogs do not point to the actual file, so we need to custom lookups
+     * @param path
+     * @return
+     */
+    private def getDEMPathFromInspire(path: String): Seq[Link] = {
+      var gdalPrefix = ""
+      val inputStream: InputStream = loadMetadata(path, "INSPIRE.xml")
+      if(inputStream == null) {
+        return Seq.empty[Link]
+      }
+      val xml = XML.load(inputStream)
+
+      (xml \\ "CI_Citation" \ "identifier" \ "RS_Identifier" \ "code"  )
+        .map((dataObject: Node) =>{
+          val title = (dataObject \ "CharacterString").text
+          val demPath = title.split(':')(2)
+          val fileLocation = s"${path}/${demPath}/DEM/${demPath}_DEM.tif"
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${Paths.get(fileLocation.toString).normalize().toString}"),Some("DEM"))
         })
     }
 
@@ -227,6 +255,9 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry))
+            }else if(id.contains("COP-DEM_GLO-30-DGED")){
+              val all_links = getDEMPathFromInspire(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry))
             }else{
               Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry))

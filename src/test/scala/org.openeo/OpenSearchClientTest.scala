@@ -53,6 +53,28 @@ class OpenSearchClientTest {
   }
 
   @Test
+  def testCreoGetProductsDEM(): Unit = {
+    val openSearch = CreodiasClient
+
+    val features = openSearch.getProducts(
+      collectionId = "CopDem",
+      (LocalDate.of(2009, 10, 1), LocalDate.of(2020, 10, 5)),
+      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
+      Map[String, Any]("productType"->"SAR_DGE_30_PUBLIC", "resolution"->30), correlationId = "hello", ""
+    )
+
+    println(s"got ${features.size} features")
+    assertTrue(features.nonEmpty)
+    assertTrue(features.size<11)
+
+    val aFeature = features.head
+    val band02 = aFeature.links.filter(_.title.get.contains("DEM"))
+    assertTrue(band02.nonEmpty)
+    assertTrue(band02(0).href.toString.endsWith("DEM.tif"))
+
+  }
+
+  @Test
   def testSTACGetProducts(): Unit = {
     val openSearch = new STACClient()
 
