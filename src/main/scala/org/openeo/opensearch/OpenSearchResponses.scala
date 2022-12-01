@@ -193,9 +193,19 @@ object OpenSearchResponses {
       return inputStream
     }
 
+    private def getGDALPrefix(path:String) = {
+      var gdalPrefix = ""
+      if (path.startsWith("https://")) {
+        gdalPrefix = "/vsicurl"
+      } else if (getAwsDirect()) {
+        gdalPrefix = "/vsis3"
+      }
+      gdalPrefix
+    }
+
     private def getFilePathsFromManifest(path: String): Seq[Link] = {
 
-      var gdalPrefix = ""
+      val gdalPrefix: String = getGDALPrefix(path)
       val inputStream: InputStream = loadMetadata(path,"manifest.safe")
       if(inputStream == null) {
         return Seq.empty[Link]
@@ -216,7 +226,7 @@ object OpenSearchResponses {
      * @return
      */
     private def getDEMPathFromInspire(path: String): Seq[Link] = {
-      var gdalPrefix = ""
+      val gdalPrefix: String = getGDALPrefix(path)
       val inputStream: InputStream = loadMetadata(path, "INSPIRE.xml")
       if(inputStream == null) {
         return Seq.empty[Link]
