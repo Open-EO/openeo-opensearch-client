@@ -91,7 +91,7 @@ abstract class OpenSearchClient {
     val url = request.urlBuilder(request)
     val response = request.asString
 
-    logger.debug(s"$url returned ${response.code}")
+    logger.info(s"$url returned ${response.code}")
 
     val json = response.throwError.body // note: the HttpStatusException's message doesn't include the response body
 
