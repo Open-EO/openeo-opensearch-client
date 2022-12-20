@@ -4,10 +4,11 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
-import org.openeo.opensearch.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
+import java.time.ZonedDateTime
 import scala.io.{Codec, Source}
 
 class OpenSearchResponsesTest {
@@ -76,6 +77,19 @@ class OpenSearchResponsesTest {
     val features = FeatureCollection.parse(productsResponse).features
 
     assertEquals(0, features.length)
+  }
+
+  @Test
+  def parseGeodiasDuppedFeature(): Unit = {
+    val collectionsResponse = loadJsonResource("geodiasDuppedFeature.json")
+    val features = CreoFeatureCollection.parse(collectionsResponse).features
+
+    assertEquals(1, features.length)
+
+    val feature = features(0)
+
+    // Check if we really picked the latest Feature:
+    assertEquals(ZonedDateTime.parse("2021-04-11T08:51:07.054814Z"), feature.publishedDate.get)
   }
 
   @Test

@@ -31,7 +31,8 @@ object OpenSearchResponses {
   case class Link(href: URI, title: Option[String])
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
-                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None){
+                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
+                     publishedDate: Option[ZonedDateTime] = None){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -251,6 +252,7 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("startDate").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Array[Link]]
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
+            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
           } yield {
 
             val theGeometry = geometry.toString().parseGeoJson[Geometry]
@@ -265,17 +267,18 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), None, publishedDate)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), None, publishedDate)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), None, publishedDate)
             }
-
           }
         }
       }
+
+
 
       implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
         override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
@@ -283,7 +286,14 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            FeatureCollection(itemsPerPage, features)
+            val featuresDeduped = features
+              .groupBy(x => (x.nominalDate, x.geometry)) // Simple check to assume equality
+              .map(tuple => tuple._2.maxBy(_.publishedDate))
+              .toArray
+            if (featuresDeduped.length < features.length) {
+              logger.debug(s"A duplicate was removed from the results. Most recent published was kept")
+            }
+            FeatureCollection(itemsPerPage, featuresDeduped)
           }
         }
       }
