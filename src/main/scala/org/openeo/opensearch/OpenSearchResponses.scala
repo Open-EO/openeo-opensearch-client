@@ -31,8 +31,8 @@ object OpenSearchResponses {
   case class Link(href: URI, title: Option[String])
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
-                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                     publishedDate: Option[ZonedDateTime] = None){
+                     publishedDate: Option[ZonedDateTime], tileID: Option[String] = None,
+                     geometry: Option[Geometry] = None, var crs: Option[CRS] = None){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -53,6 +53,7 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Double].toOption
             maybeCRS = c.downField("properties").downField("productInformation").downField("referenceSystemIdentifier").as[String].toOption
             tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
+            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
@@ -76,7 +77,8 @@ object OpenSearchResponses {
                 None
               }
             }
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,tileId,geometry=geometry,crs = crs)
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution, publishedDate,
+              tileId, geometry = geometry, crs = crs)
           }
         }
       }
@@ -96,6 +98,7 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
             links <- c.downField("assets").as[Map[String, Link]]
             resolution = c.downField("properties").downField("gsd").as[Double].toOption
+            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
@@ -111,7 +114,7 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution,None,geometry=geometry)
+            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, publishedDate, None, geometry = geometry)
           }
         }
       }
@@ -275,12 +278,12 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), None, publishedDate)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, publishedDate,tileID,Option(theGeometry))
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), None, publishedDate)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, publishedDate,tileID,Option(theGeometry))
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), None, publishedDate)
+              Feature(id, extent, nominalDate, links, resolution, publishedDate,tileID,Option(theGeometry))
             }
           }
         }
@@ -294,14 +297,15 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresDeduped = features
-              .groupBy(x => (x.nominalDate, x.geometry)) // Simple check to assume equality
-              .map(tuple => tuple._2.maxBy(_.publishedDate))
-              .toArray
-            if (featuresDeduped.length < features.length) {
-              logger.debug(s"A duplicate was removed from the results. Most recent published was kept")
-            }
-            FeatureCollection(itemsPerPage, featuresDeduped)
+            val featuresGrouped = features.groupBy(x => (x.nominalDate, x.geometry)) // Simple check to assume equality
+
+            logger.info(featuresGrouped.map({
+              case (_, Array(_)) => "" // Single element here, nothing to do
+              case (k, a) => ("Multiple features found with same startDate: '" + k._1
+                + "'. Will now pick latest published out of the following options: " + a.map(_.publishedDate).mkString(", ")) + ""
+            }).mkString("\n"))
+
+            FeatureCollection(itemsPerPage, featuresGrouped.map(tuple => tuple._2.maxBy(_.publishedDate)).toArray)
           }
         }
       }

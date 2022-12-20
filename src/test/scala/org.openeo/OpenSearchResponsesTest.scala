@@ -59,6 +59,8 @@ class OpenSearchResponsesTest {
     assertEquals(CRS.fromEpsgCode(32736),features.head.crs.get)
 
     assertTrue(features.exists(_.geometry.isDefined))
+    assertEquals(ZonedDateTime.parse("2020-01-31T14:58:33Z"),
+      features.find(_.geometry.isDefined).get.publishedDate.get)
 
     val Some(dataUrl) = features.head.links
       .find(_.title contains "SCENECLASSIFICATION_20M")
