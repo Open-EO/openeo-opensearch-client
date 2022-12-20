@@ -204,6 +204,14 @@ object OpenSearchResponses {
       gdalPrefix
     }
 
+    private def normalizePath(fileLocation: Object): String = {
+      var str = Paths.get(fileLocation.toString).normalize().toString
+      if (System.getProperty("os.name").toLowerCase.contains("windows")) {
+        str = str.replace("\\", "/")
+      }
+      str
+    }
+
     private def getFilePathsFromManifest(path: String): Seq[Link] = {
 
       val gdalPrefix: String = getGDALPrefix(path)
@@ -217,7 +225,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${Paths.get(fileLocation.toString).normalize().toString}"),Some(title.toString))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${normalizePath(fileLocation)}"),Some(title.toString))
         })
     }
 
@@ -239,7 +247,7 @@ object OpenSearchResponses {
           val title = (dataObject \ "CharacterString").text
           val demPath = title.split(':')(2)
           val fileLocation = s"${path}/${demPath}/DEM/${demPath}_DEM.tif"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${Paths.get(fileLocation.toString).normalize().toString}"),Some("DEM"))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + normalizePath(fileLocation)),Some("DEM"))
         })
     }
 
