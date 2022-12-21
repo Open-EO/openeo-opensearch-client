@@ -31,8 +31,8 @@ object OpenSearchResponses {
   case class Link(href: URI, title: Option[String])
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
-                     publishedDate: Option[ZonedDateTime], tileID: Option[String] = None,
-                     geometry: Option[Geometry] = None, var crs: Option[CRS] = None){
+                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
+                     publishedDate: Option[ZonedDateTime] = None){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -77,8 +77,8 @@ object OpenSearchResponses {
                 None
               }
             }
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution, publishedDate,
-              tileId, geometry = geometry, crs = crs)
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,
+              tileId, geometry = geometry, crs = crs, publishedDate=publishedDate)
           }
         }
       }
@@ -114,7 +114,7 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, publishedDate, None, geometry = geometry)
+            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry, publishedDate = publishedDate)
           }
         }
       }
@@ -270,12 +270,12 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, publishedDate,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), publishedDate = publishedDate)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, publishedDate,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), publishedDate = publishedDate)
             }else{
-              Feature(id, extent, nominalDate, links, resolution, publishedDate,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), publishedDate = publishedDate)
             }
           }
         }
