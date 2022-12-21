@@ -207,14 +207,6 @@ object OpenSearchResponses {
       gdalPrefix
     }
 
-    private def normalizePath(fileLocation: Object): String = {
-      var str = Paths.get(fileLocation.toString).normalize().toString
-      if (System.getProperty("os.name").toLowerCase.contains("windows")) {
-        str = str.replace("\\", "/")
-      }
-      str
-    }
-
     private def getFilePathsFromManifest(path: String): Seq[Link] = {
 
       val gdalPrefix: String = getGDALPrefix(path)
@@ -228,7 +220,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${normalizePath(fileLocation)}"),Some(title.toString))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(title.toString))
         })
     }
 
@@ -250,7 +242,7 @@ object OpenSearchResponses {
           val title = (dataObject \ "CharacterString").text
           val demPath = title.split(':')(2)
           val fileLocation = s"${path}/${demPath}/DEM/${demPath}_DEM.tif"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + normalizePath(fileLocation)),Some("DEM"))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${URI.create(fileLocation.toString).normalize().toString}"), Some("DEM"))
         })
     }
 
@@ -299,13 +291,26 @@ object OpenSearchResponses {
           } yield {
             val featuresGrouped = features.groupBy(x => (x.nominalDate, x.geometry)) // Simple check to assume equality
 
-            logger.info(featuresGrouped.map({
-              case (_, Array(_)) => "" // Single element here, nothing to do
-              case (k, a) => ("Multiple features found with same startDate: '" + k._1
-                + "'. Will now pick latest published out of the following options: " + a.map(_.publishedDate).mkString(", ")) + ""
-            }).mkString("\n"))
+            val featuresGroupedFiltered = featuresGrouped.map({ case (key, features) =>
+              val selectedElement = features.maxBy(_.publishedDate)
+              val toBeRemoved = features.filter(_ != selectedElement)
+              val toLog = if (toBeRemoved.length > 0)
+                ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
+                  + ". Keeping the Latest published one: " + selectedElement.id)
+              else
+                ""
+              (key, selectedElement, toLog)
+            })
 
-            FeatureCollection(itemsPerPage, featuresGrouped.map(tuple => tuple._2.maxBy(_.publishedDate)).toArray)
+            logger.info(featuresGroupedFiltered
+              .map({ case (key, selectedElement, toLog) => toLog })
+              .filter(_ != "")
+              .mkString("\n"))
+
+            FeatureCollection(
+              itemsPerPage,
+              featuresGroupedFiltered.map({ case (key, selectedElement, toLog) => selectedElement }).toArray
+            )
           }
         }
       }
