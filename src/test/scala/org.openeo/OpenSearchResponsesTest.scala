@@ -4,10 +4,11 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
-import org.openeo.opensearch.OpenSearchResponses.{FeatureCollection, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
+import java.time.ZonedDateTime
 import scala.io.{Codec, Source}
 
 class OpenSearchResponsesTest {
@@ -58,6 +59,8 @@ class OpenSearchResponsesTest {
     assertEquals(CRS.fromEpsgCode(32736),features.head.crs.get)
 
     assertTrue(features.exists(_.geometry.isDefined))
+    assertEquals(ZonedDateTime.parse("2020-01-31T14:58:33Z"),
+      features.find(_.geometry.isDefined).get.publishedDate.get)
 
     val Some(dataUrl) = features.head.links
       .find(_.title contains "SCENECLASSIFICATION_20M")
@@ -76,6 +79,20 @@ class OpenSearchResponsesTest {
     val features = FeatureCollection.parse(productsResponse).features
 
     assertEquals(0, features.length)
+  }
+
+  @Test
+  def parseGeodiasDuppedFeature(): Unit = {
+    val collectionsResponse = loadJsonResource("geodiasDuppedFeature.json")
+    val features = CreoFeatureCollection.parse(collectionsResponse).features
+
+    assertEquals(1, features.length)
+
+    val feature = features(0)
+
+    // Check if we really picked the latest Feature:
+    assertEquals(ZonedDateTime.parse("2021-04-11T08:51:07.054814Z"), feature.publishedDate.get)
+    assertEquals("/eodata/Sentinel-1/SAR/GRD/2021/04/11/S1B_IW_GRDH_1SDV_20210411T054146_20210411T054211_026415_032740_6184.SAFE", feature.id)
   }
 
   @Test
