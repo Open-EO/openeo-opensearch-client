@@ -60,7 +60,7 @@ class OpenSearchResponsesTest {
 
     assertTrue(features.exists(_.geometry.isDefined))
     assertEquals(ZonedDateTime.parse("2020-01-31T14:58:33Z"),
-      features.find(_.geometry.isDefined).get.generalProperties.published.get)
+      features.find(_.geometry.isDefined).get.publishedDate.get)
 
     val Some(dataUrl) = features.head.links
       .find(_.title contains "SCENECLASSIFICATION_20M")
@@ -91,7 +91,7 @@ class OpenSearchResponsesTest {
     val feature = features(0)
 
     // Check if we really picked the latest Feature:
-    assertEquals(ZonedDateTime.parse("2021-04-11T08:51:07.054814Z"), feature.generalProperties.published.get)
+    assertEquals(ZonedDateTime.parse("2021-04-11T08:51:07.054814Z"), feature.publishedDate.get)
     assertEquals("/eodata/Sentinel-1/SAR/GRD/2021/04/11/S1B_IW_GRDH_1SDV_20210411T054146_20210411T054211_026415_032740_6184.SAFE", feature.id)
   }
 
