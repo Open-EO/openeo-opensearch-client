@@ -2,7 +2,7 @@ package org.openeo.opensearch.backends
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.time.format.DateTimeFormatter.ISO_INSTANT
-import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection, GeneralProperties}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
@@ -89,6 +89,6 @@ object CreodiasClient extends OpenSearchClient {
       .option(HttpOptions.followRedirects(true))
 
     val json = withRetries { execute(getCollections) }
-    CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null,None))
+    CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null, new GeneralProperties(),None))
   }
 }
