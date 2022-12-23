@@ -1,7 +1,7 @@
 package org.openeo.opensearch.backends
 
 import org.openeo.opensearch.OpenSearchClient
-import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, GeneralProperties, STACCollections, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, STACCollections, STACFeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import scalaj.http.HttpOptions
@@ -72,7 +72,7 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
 
 
     val json = withRetries { execute(getCollections) }
-    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, None))
+    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null,None))
   }
 
   override def equals(other: Any): Boolean = other match {

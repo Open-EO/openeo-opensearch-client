@@ -1,7 +1,7 @@
 package org.openeo.opensearch.backends
 
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import org.openeo.opensearch.OpenSearchResponses.{GeneralProperties, Link}
+import org.openeo.opensearch.OpenSearchResponses.Link
 import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
 import geotrellis.raster.gdal.{GDALRasterSource, GDALWarpOptions}
 import geotrellis.store.hadoop.util.HdfsUtils
