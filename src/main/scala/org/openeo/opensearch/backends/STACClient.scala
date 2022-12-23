@@ -72,7 +72,7 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
 
 
     val json = withRetries { execute(getCollections) }
-    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, new GeneralProperties(), None))
+    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, None))
   }
 
   override def equals(other: Any): Boolean = other match {

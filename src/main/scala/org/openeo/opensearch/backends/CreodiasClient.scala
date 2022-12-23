@@ -89,6 +89,6 @@ object CreodiasClient extends OpenSearchClient {
       .option(HttpOptions.followRedirects(true))
 
     val json = withRetries { execute(getCollections) }
-    CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null, new GeneralProperties(),None))
+    CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null, None))
   }
 }

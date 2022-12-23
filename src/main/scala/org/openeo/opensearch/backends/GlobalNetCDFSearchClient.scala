@@ -54,7 +54,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
       .flatMap { case (date, path) => bands.asScala.map(v=>(date, path, GDALRasterSource(s"""NETCDF:"$path":$v""",GDALWarpOptions(alignTargetPixels = false)))) }
 
     val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map{ case (date: ZonedDateTime, path: String, source: GDALRasterSource) =>
-      OpenSearchResponses.Feature(s"${path}", source.extent, date, bands.asScala.map(v=>Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width.toInt), new GeneralProperties(), None)
+      OpenSearchResponses.Feature(s"${path}", source.extent, date, bands.asScala.map(v=>Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width.toInt), None)
     }
 
     features.toSeq

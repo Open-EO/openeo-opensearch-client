@@ -96,6 +96,89 @@ class OpenSearchResponsesTest {
   }
 
   @Test
+  def parseGeodiasSpecialDupped(): Unit = {
+    val geodiasFeatureSnippet = loadJsonResource("geodiasFeatureSnippet.json")
+    val composedJsonString = """{
+      |  "type": "FeatureCollection",
+      |  "properties": {
+      |    "id": "fad6ca4a-3ab6-59e5-8e69-14aaf70256de",
+      |    "totalResults": 2,
+      |    "exactCount": true,
+      |    "startIndex": 1,
+      |    "itemsPerPage": 2,
+      |    "query": {
+      |      "originalFilters": {
+      |        "maxRecords": "10",
+      |        "startDate": "2021-04-11T00:00:00Z",
+      |        "completionDate": "2021-04-11T23:59:59Z",
+      |        "productType": "GRD",
+      |        "sensorMode": "IW",
+      |        "geometry": "POLYGON((5.785404630537803 51.033953432779526,5.787426293119076 51.021746940265956,5.803195261253003 51.018694814851074,5.803195261253003 51.02912208053834,5.785404630537803 51.033953432779526))",
+      |        "sortParam": "startDate",
+      |        "sortOrder": "descending",
+      |        "collection": "Sentinel1"
+      |      },
+      |      "appliedFilters": {
+      |        "maxRecords": "10",
+      |        "startDate": "2021-04-11T00:00:00Z",
+      |        "completionDate": "2021-04-11T23:59:59Z",
+      |        "productType": "GRD",
+      |        "sensorMode": "IW",
+      |        "geometry": "POLYGON((5.785404630537803 51.033953432779526,5.787426293119076 51.021746940265956,5.803195261253003 51.018694814851074,5.803195261253003 51.02912208053834,5.785404630537803 51.033953432779526))",
+      |        "sortParam": "startDate",
+      |        "sortOrder": "descending",
+      |        "collection": "Sentinel1"
+      |      },
+      |      "analysis": {
+      |        "query": null,
+      |        "language": "en",
+      |        "analyze": {
+      |          "What": [],
+      |          "When": [],
+      |          "Where": [],
+      |          "Errors": [],
+      |          "Explained": []
+      |        },
+      |        "processingTime": 1.1920928955078e-06
+      |      },
+      |      "processingTime": 2.2054579257965
+      |    },
+      |    "links": [
+      |      {
+      |        "rel": "self",
+      |        "type": "application/json",
+      |        "title": "self",
+      |        "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?&maxRecords=10&startDate=2021-04-11T00%3A00%3A00Z&completionDate=2021-04-11T23%3A59%3A59Z&productType=GRD&sensorMode=IW&geometry=POLYGON%28%285.785404630537803%2051.033953432779526%2C5.787426293119076%2051.021746940265956%2C5.803195261253003%2051.018694814851074%2C5.803195261253003%2051.02912208053834%2C5.785404630537803%2051.033953432779526%29%29&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"
+      |      },
+      |      {
+      |        "rel": "search",
+      |        "type": "application/opensearchdescription+xml",
+      |        "title": "OpenSearch Description Document",
+      |        "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/describe.xml"
+      |      }
+      |    ]
+      |  },
+      |  "features": [""".stripMargin +
+      geodiasFeatureSnippet.replaceAll("%startDate%", "2000-01-01T01:01:01.001Z") + ", \n" +
+      geodiasFeatureSnippet.replaceAll("%startDate%", "2000-01-01T01:01:29.001Z") + ", \n" +
+      geodiasFeatureSnippet.replaceAll("%startDate%", "2000-01-01T01:01:32.001Z") +
+      "]}"
+    val features = CreoFeatureCollection.parse(composedJsonString).features
+
+    // Even tough the images are pairwise equal, the first and the last are not.
+    // So the dedup code is forced to consider them as separate
+    assertEquals(2, features.length)
+  }
+
+  @Test
+  def parseGeodiasDifferentGeom(): Unit = {
+    val collectionsResponse = loadJsonResource("geodiasDifferentGeom.json")
+    val features = CreoFeatureCollection.parse(collectionsResponse).features
+
+    assertEquals(3, features.length)
+  }
+
+  @Test
   def parseCollectionsResponse(): Unit = {
     val collectionsResponse = loadJsonResource("oscarsCollectionsResponse.json")
     val features = FeatureCollection.parse(collectionsResponse).features

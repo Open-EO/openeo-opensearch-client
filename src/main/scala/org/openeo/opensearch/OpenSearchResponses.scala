@@ -43,8 +43,8 @@ object OpenSearchResponses {
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
-                     generalProperties: GeneralProperties,
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
+                     generalProperties: GeneralProperties = new GeneralProperties(),
                      ){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
@@ -52,6 +52,22 @@ object OpenSearchResponses {
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
   }
 
+  def isDuplicate(f1: Feature, f2: Feature): Boolean = {
+    if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
+    if (f1.generalProperties.published.isDefined != f2.generalProperties.published.isDefined) return false
+    if (f1.generalProperties.published.isDefined && f2.generalProperties.published.isDefined
+      && ChronoUnit.SECONDS.between(
+      f1.generalProperties.published.get,
+      f2.generalProperties.published.get
+    ) > 30) return false
+    // If orbitNumber or organisationName is None it works out too
+    if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
+    if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
+    if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
+
+    if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
+    true
+  }
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
@@ -90,8 +106,8 @@ object OpenSearchResponses {
                 None
               }
             }
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution, properties,
-              tileId, geometry = geometry, crs = crs)
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,
+              tileId, geometry = geometry, crs = crs, generalProperties=properties)
           }
         }
       }
@@ -127,8 +143,8 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, properties, None, geometry = geometry,
-              )
+            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
+              generalProperties=properties)
           }
         }
       }
@@ -284,12 +300,12 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, properties, tileID, Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,properties,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,properties,tileID,Option(theGeometry))
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }
@@ -305,23 +321,6 @@ object OpenSearchResponses {
           } yield {
             val featuresSorted = features.sortBy(_.nominalDate)
 
-            def isDuplicate(f1: Feature, f2: Feature): Boolean = {
-              if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
-              if (f1.generalProperties.published.isDefined != f2.generalProperties.published.isDefined) return false
-              if (f1.generalProperties.published.isDefined && f2.generalProperties.published.isDefined
-                && ChronoUnit.SECONDS.between(
-                f1.generalProperties.published.get,
-                f2.generalProperties.published.get
-              ) > 30) return false
-              // If orbitNumber or organisationName is None it works out too
-              if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
-              if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
-              if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
-
-              if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
-              true
-            }
-
             val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()
             // Only check for dups in a cluster of Features with the same startDate for performance.
             var dateClusterStart = 0
@@ -335,8 +334,7 @@ object OpenSearchResponses {
 
               var foundDupToAttachTo = false
               breakable {
-                for (j <- i - 1 to dateClusterStart by -1) {
-                  println(j)
+                for (j <- dateClusterStart until i) {
                   if (isDuplicate(featuresSorted(i), featuresSorted(j))) {
                     dupClusters(featuresSorted(j)) += featuresSorted(i)
                     foundDupToAttachTo = true
@@ -352,22 +350,23 @@ object OpenSearchResponses {
             val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
               val selectedElement = features.maxBy(_.generalProperties.published)
               val toBeRemoved = features.filter(_ != selectedElement)
-              val toLog = if (toBeRemoved.length > 0)
+              val toLog = if (toBeRemoved.nonEmpty)
                 ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
-                  + ". Keeping the Latest published one: " + selectedElement.id)
+                  + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
               else
                 ""
               (key, selectedElement, toLog)
             })
 
-            logger.info(featuresGroupedFiltered
-              .map({ case (key, selectedElement, toLog) => toLog })
+            val msg = featuresGroupedFiltered
+              .map({ case (_, _, toLog) => toLog })
               .filter(_ != "")
-              .mkString("\n"))
+              .mkString("\n")
+            if (msg.nonEmpty) logger.info(msg)
 
             FeatureCollection(
               itemsPerPage,
-              featuresGroupedFiltered.map({ case (key, selectedElement, toLog) => selectedElement }).toArray
+              featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toArray
             )
           }
         }
