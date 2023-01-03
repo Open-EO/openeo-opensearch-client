@@ -18,8 +18,11 @@ import java.lang.System.getenv
 import java.net.URI
 import java.nio.file.Paths
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.util.regex.Pattern
 import javax.net.ssl.HttpsURLConnection
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
 import scala.xml.{Node, XML}
 
 object OpenSearchResponses {
@@ -30,15 +33,41 @@ object OpenSearchResponses {
 
   case class Link(href: URI, title: Option[String])
 
+  /**
+   * To store some simple properties that come out of the "properties" JSON node.
+   * Properties that need some processing are better parsed in the apply functions.
+   */
+  case class GeneralProperties(published: Option[ZonedDateTime], orbitNumber: Option[Int],
+                               organisationName: Option[String], instrument: Option[String]) {
+    def this() = this(None, None, None, None)
+  }
+
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                     publishedDate: Option[ZonedDateTime] = None){
+                     generalProperties: GeneralProperties = new GeneralProperties(),
+                     ){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
   }
 
+  def isDuplicate(f1: Feature, f2: Feature): Boolean = {
+    if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
+    if (f1.generalProperties.published.isDefined != f2.generalProperties.published.isDefined) return false
+    if (f1.generalProperties.published.isDefined && f2.generalProperties.published.isDefined
+      && ChronoUnit.SECONDS.between(
+      f1.generalProperties.published.get,
+      f2.generalProperties.published.get
+    ) > 30) return false
+    // If orbitNumber or organisationName is None it works out too
+    if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
+    if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
+    if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
+
+    if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
+    true
+  }
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
@@ -53,7 +82,7 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Double].toOption
             maybeCRS = c.downField("properties").downField("productInformation").downField("referenceSystemIdentifier").as[String].toOption
             tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
-            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
+            properties <- c.downField("properties").as[GeneralProperties]
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
@@ -78,7 +107,7 @@ object OpenSearchResponses {
               }
             }
             Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,
-              tileId, geometry = geometry, crs = crs, publishedDate=publishedDate)
+              tileId, geometry = geometry, crs = crs, generalProperties=properties)
           }
         }
       }
@@ -98,7 +127,7 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
             links <- c.downField("assets").as[Map[String, Link]]
             resolution = c.downField("properties").downField("gsd").as[Double].toOption
-            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
+            properties <- c.downField("properties").as[GeneralProperties]
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
             val extent = Extent(xMin, yMin, xMax, yMax)
@@ -114,7 +143,8 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry, publishedDate = publishedDate)
+            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
+              generalProperties=properties)
           }
         }
       }
@@ -255,7 +285,7 @@ object OpenSearchResponses {
             nominalDate <- c.downField("properties").downField("startDate").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Array[Link]]
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
-            publishedDate = c.downField("properties").downField("published").as[ZonedDateTime].toOption
+            properties <- c.downField("properties").as[GeneralProperties]
           } yield {
 
             val theGeometry = geometry.toString().parseGeoJson[Geometry]
@@ -270,12 +300,12 @@ object OpenSearchResponses {
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), publishedDate = publishedDate)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), publishedDate = publishedDate)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), publishedDate = publishedDate)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }
@@ -289,27 +319,54 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresGrouped = features.groupBy(x => (x.nominalDate, x.geometry)) // Simple check to assume equality
+            val featuresSorted = features.sortBy(_.nominalDate)
 
-            val featuresGroupedFiltered = featuresGrouped.map({ case (key, features) =>
-              val selectedElement = features.maxBy(_.publishedDate)
+            val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()
+            // Only check for dups in a cluster of Features with the same startDate for performance.
+            var dateClusterStart = 0
+            for (i <- featuresSorted.indices) {
+
+              if (i != dateClusterStart && ChronoUnit.SECONDS.between(featuresSorted(dateClusterStart).nominalDate,
+                featuresSorted(i).nominalDate) > 30) {
+                // time gap since previous Feature, so make a cut for better performance
+                dateClusterStart = i
+              }
+
+              var foundDupToAttachTo = false
+              breakable {
+                for (j <- dateClusterStart until i) {
+                  if (isDuplicate(featuresSorted(i), featuresSorted(j))) {
+                    dupClusters(featuresSorted(j)) += featuresSorted(i)
+                    foundDupToAttachTo = true
+                    break
+                  }
+                }
+              }
+              if (!foundDupToAttachTo) {
+                dupClusters += (featuresSorted(i) -> ListBuffer(featuresSorted(i)))
+              }
+            }
+
+            val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
+              val selectedElement = features.maxBy(_.generalProperties.published)
               val toBeRemoved = features.filter(_ != selectedElement)
-              val toLog = if (toBeRemoved.length > 0)
+              val toLog = if (toBeRemoved.nonEmpty)
                 ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
-                  + ". Keeping the Latest published one: " + selectedElement.id)
+                  + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
               else
                 ""
               (key, selectedElement, toLog)
             })
 
-            logger.info(featuresGroupedFiltered
-              .map({ case (key, selectedElement, toLog) => toLog })
+            val msg = featuresGroupedFiltered
+              .map({ case (_, _, toLog) => toLog })
               .filter(_ != "")
-              .mkString("\n"))
+              .mkString("\n")
+            if (msg.nonEmpty) logger.info(msg)
 
             FeatureCollection(
               itemsPerPage,
-              featuresGroupedFiltered.map({ case (key, selectedElement, toLog) => selectedElement }).toArray
+              featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toArray
             )
           }
         }

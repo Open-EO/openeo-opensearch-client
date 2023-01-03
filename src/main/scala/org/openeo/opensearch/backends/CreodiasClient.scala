@@ -13,7 +13,6 @@ import scala.collection.Map
 object CreodiasClient extends OpenSearchClient {
   private val collections = "https://finder.creodias.eu/resto/collections.json"
   private def collection(collectionId: String) = s"https://finder.creodias.eu/resto/api/collections/$collectionId/search.json"
-  private val sentinel1_switch_date = ZonedDateTime.of(2021,2,23,0,0,0,0,ZoneId.of("UTC"))
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
@@ -68,16 +67,6 @@ object CreodiasClient extends OpenSearchClient {
 
     if( "Sentinel1".equals(collectionId)) {
       getProducts = getProducts.param("productType","GRD")
-      if(dateRange.isDefined && !attributeValues.contains("timeliness")) {
-        //ESA decided to redefine the meaning of the timeliness property at some point
-        //https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-1-nrt-3h-and-fast24h-products
-        if(dateRange.get._1.isBefore(sentinel1_switch_date)) {
-          getProducts = getProducts.param("timeliness","Fast-24h")
-        }else{
-          getProducts = getProducts.param("timeliness","NRT-3h|Fast-24h")
-        }
-
-      }
     }
 
     val json = withRetries { execute(getProducts) }
