@@ -125,6 +125,7 @@ class OpenSearchClientTest {
     checkGetCollections(new STACClient())
   }
 
+  @Ignore
   @Test
   def testSTACGetCollectionsCScale(): Unit = {
     checkGetCollections(new STACClient(new URL("https://resto.c-scale.zcu.cz/")))
