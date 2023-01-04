@@ -50,7 +50,7 @@ object OpenSearchResponses {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
-    if(tileID.isDefined) {
+    if(tileID.isDefined && crs.get.proj4jCrs.getProjection.getName == "utm") {
       val bbox = MGRS.mgrsToSentinel2Extent(tileID.get)
       rasterExtent = Some(bbox)
 
