@@ -44,12 +44,17 @@ object OpenSearchResponses {
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                     generalProperties: GeneralProperties = new GeneralProperties(),
+                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None
                      ){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
+    if(tileID.isDefined) {
+      val bbox = MGRS.mgrsToSentinel2Extent(tileID.get)
+      rasterExtent = Some(bbox)
+
+    }
   }
 
   def isDuplicate(f1: Feature, f2: Feature): Boolean = {
