@@ -162,6 +162,17 @@ class OpenSearchResponsesTest {
   }
 
   @Test
+  def parseOscarsIssue6(): Unit = {
+    val collectionsResponse = loadJsonResource("oscarsIssue6.json")
+    val features = FeatureCollection.parse(collectionsResponse).features
+
+    // Dedup will remove 'urn:eop:VITO:TERRASCOPE_S2_TOC_V2:S2B_20180814T105019_31UFS_TOC_V200'
+    assertEquals(1, features.length)
+
+    assertEquals("urn:eop:VITO:TERRASCOPE_S2_TOC_V2:S2B_20180814T105019_31UFS_TOC_V210", features(0).id)
+  }
+
+  @Test
   def parseIncompleteResponseExceptionContainsUsefulInformation(): Unit = {
     val productsResponse = loadJsonResource("oscarsProductsResponse.json")
     val incompleteResponse = productsResponse.take(productsResponse.length / 2)
