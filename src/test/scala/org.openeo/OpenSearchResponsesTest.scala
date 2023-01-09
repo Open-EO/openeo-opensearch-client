@@ -146,7 +146,14 @@ class OpenSearchResponsesTest {
     val collectionsResponse = loadJsonResource("oscarsCollectionsResponse.json")
     val features = FeatureCollection.parse(collectionsResponse).features
 
-    assertEquals(8, features.length)
+    // Dedup will remove 'urn:eop:VITO:CGS_S2_RAD_L2_V200'
+    assertEquals(7, features.length)
+
+    // Order should be kept
+    assertEquals("urn:eop:VITO:CGS_S2_FAPAR", features(0).id)
+    assertEquals("urn:eop:VITO:CGS_S2_RAD_L2", features(1).id)
+    assertEquals("urn:ogc:def:EOP:VITO:PROBAV_L2A_1KM_V001", features(2).id)
+    assertEquals("urn:ogc:def:EOP:VITO:PROBAV_S1-TOC_333M_V001", features(3).id)
 
     val Some(s2Fapar) = features
       .find(_.id == "urn:eop:VITO:CGS_S2_FAPAR")

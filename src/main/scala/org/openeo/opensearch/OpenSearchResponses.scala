@@ -38,8 +38,9 @@ object OpenSearchResponses {
    * Properties that need some processing are better parsed in the apply functions.
    */
   case class GeneralProperties(published: Option[ZonedDateTime], orbitNumber: Option[Int],
-                               organisationName: Option[String], instrument: Option[String]) {
-    def this() = this(None, None, None, None)
+                               organisationName: Option[String], instrument: Option[String],
+                               updated: Option[ZonedDateTime]) {
+    def this() = this(None, None, None, None, None)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
@@ -57,14 +58,19 @@ object OpenSearchResponses {
     }
   }
 
-  def isDuplicate(f1: Feature, f2: Feature): Boolean = {
+  private def isDuplicate(d1: Option[ZonedDateTime], d2: Option[ZonedDateTime]): Boolean = {
+    if (d1.isDefined != d2.isDefined) return false
+    if (d1.isDefined && d2.isDefined
+      && ChronoUnit.SECONDS.between(d1.get, d2.get) > 30) return false
+    true
+  }
+
+  private def isDuplicate(f1: Feature, f2: Feature): Boolean = {
     if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
-    if (f1.generalProperties.published.isDefined != f2.generalProperties.published.isDefined) return false
-    if (f1.generalProperties.published.isDefined && f2.generalProperties.published.isDefined
-      && ChronoUnit.SECONDS.between(
-      f1.generalProperties.published.get,
-      f2.generalProperties.published.get
-    ) > 30) return false
+
+    if (!isDuplicate(f1.generalProperties.published, f2.generalProperties.published)) return false
+    if (!isDuplicate(f1.generalProperties.updated, f2.generalProperties.updated)) return false
+
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
@@ -73,6 +79,61 @@ object OpenSearchResponses {
     if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
     true
   }
+
+  /**
+   * Should be under O(n*n)
+   */
+  private def dedupFeatures(features: Array[Feature]): Array[Feature] = {
+    val featuresSorted = features.sortBy(_.nominalDate)
+
+    val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()
+    // Only check for dups in a cluster of Features with the same startDate for performance.
+    var dateClusterStart = 0
+    for (i <- featuresSorted.indices) {
+
+      if (i != dateClusterStart && ChronoUnit.SECONDS.between(featuresSorted(dateClusterStart).nominalDate,
+        featuresSorted(i).nominalDate) > 30) {
+        // time gap since previous Feature, so make a cut for better performance
+        dateClusterStart = i
+      }
+
+      var foundDupToAttachTo = false
+      breakable {
+        for (j <- dateClusterStart until i) {
+          if (isDuplicate(featuresSorted(i), featuresSorted(j))) {
+            dupClusters(featuresSorted(j)) += featuresSorted(i)
+            foundDupToAttachTo = true
+            break
+          }
+        }
+      }
+      if (!foundDupToAttachTo) {
+        dupClusters += (featuresSorted(i) -> ListBuffer(featuresSorted(i)))
+      }
+    }
+
+    val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
+      val selectedElement = features.maxBy(_.generalProperties.published)
+      val toBeRemoved = features.filter(_ != selectedElement)
+      val toLog = if (toBeRemoved.nonEmpty)
+        ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
+          + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
+      else
+        ""
+      (key, selectedElement, toLog)
+    })
+
+    val msg = featuresGroupedFiltered
+      .map({ case (_, _, toLog) => toLog })
+      .filter(_ != "")
+      .mkString("\n")
+    if (msg.nonEmpty) logger.info(msg)
+    val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toSet
+
+    // Make sure the order is as it was before the dedup
+    features.flatMap(f => if (featuresFiltered.contains(f)) List(f) else List())
+  }
+
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
@@ -113,6 +174,18 @@ object OpenSearchResponses {
             }
             Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,
               tileId, geometry = geometry, crs = crs, generalProperties=properties)
+          }
+        }
+      }
+
+      implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
+        override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
+          for {
+            itemsPerPage <- c.downField("itemsPerPage").as[Int]
+            features <- c.downField("features").as[Array[Feature]]
+          } yield {
+            val featuresFiltered = dedupFeatures(features)
+            FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
       }
@@ -160,7 +233,8 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            FeatureCollection(itemsPerPage, features)
+            val featuresFiltered = dedupFeatures(features)
+            FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
       }
@@ -324,55 +398,8 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresSorted = features.sortBy(_.nominalDate)
-
-            val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()
-            // Only check for dups in a cluster of Features with the same startDate for performance.
-            var dateClusterStart = 0
-            for (i <- featuresSorted.indices) {
-
-              if (i != dateClusterStart && ChronoUnit.SECONDS.between(featuresSorted(dateClusterStart).nominalDate,
-                featuresSorted(i).nominalDate) > 30) {
-                // time gap since previous Feature, so make a cut for better performance
-                dateClusterStart = i
-              }
-
-              var foundDupToAttachTo = false
-              breakable {
-                for (j <- dateClusterStart until i) {
-                  if (isDuplicate(featuresSorted(i), featuresSorted(j))) {
-                    dupClusters(featuresSorted(j)) += featuresSorted(i)
-                    foundDupToAttachTo = true
-                    break
-                  }
-                }
-              }
-              if (!foundDupToAttachTo) {
-                dupClusters += (featuresSorted(i) -> ListBuffer(featuresSorted(i)))
-              }
-            }
-
-            val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
-              val selectedElement = features.maxBy(_.generalProperties.published)
-              val toBeRemoved = features.filter(_ != selectedElement)
-              val toLog = if (toBeRemoved.nonEmpty)
-                ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
-                  + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
-              else
-                ""
-              (key, selectedElement, toLog)
-            })
-
-            val msg = featuresGroupedFiltered
-              .map({ case (_, _, toLog) => toLog })
-              .filter(_ != "")
-              .mkString("\n")
-            if (msg.nonEmpty) logger.info(msg)
-
-            FeatureCollection(
-              itemsPerPage,
-              featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toArray
-            )
+            val featuresFiltered = dedupFeatures(features)
+            FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
       }
