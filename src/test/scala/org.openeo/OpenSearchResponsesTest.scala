@@ -187,6 +187,17 @@ class OpenSearchResponsesTest {
   }
 
   @Test
+  def parseOscarsResolutionDifference(): Unit = {
+    // https://services.terrascope.be/catalogue/products?collection=urn%3Aeop%3AVITO%3ATERRASCOPE_S2_FAPAR_V2&bbox=5.083186899526165%2C51.19551975508295%2C5.089390013994452%2C51.19765894962577&sortKeys=title&startIndex=1&accessedFrom=MEP&clientId=correlationid_2&start=2019-03-07T00%3A00%3A00Z&end=2019-03-07T23%3A59%3A59.999999999Z
+    val productsResponse = loadJsonResource("oscarsResolutionDifference.json")
+    val features = FeatureCollection.parse(productsResponse, dedup = false).features
+    assertEquals(4, features.length)
+
+    val featuresDedup = FeatureCollection.parse(productsResponse, dedup = true).features
+    assertEquals(2, featuresDedup.length)
+  }
+
+  @Test
   def parseFaultyResponseExceptionContainsStackTraceContainsUsefulInformation(): Unit = {
     val productsResponse = loadJsonResource("oscarsProductsResponse.json")
     val faultyResponse = productsResponse.replace("features", "featurez")

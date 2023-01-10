@@ -73,6 +73,7 @@ object OpenSearchResponses {
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
     if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
+    if (f1.resolution != f2.resolution) return false
 
     if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
     true
@@ -173,7 +174,14 @@ object OpenSearchResponses {
                 None
               }
             }
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, resolution,
+
+            var res = resolution
+            if (res.isEmpty) {
+              // needed for oscars:
+              res = c.downField("properties").downField("additionalAttributes").downField("resolution").as[Double].toOption
+            }
+
+            Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
               tileId, geometry = geometry, crs = crs, generalProperties=properties)
           }
         }
