@@ -70,7 +70,7 @@ object CreodiasClient extends OpenSearchClient {
     }
 
     val json = withRetries { execute(getProducts) }
-    CreoFeatureCollection.parse(json)
+    CreoFeatureCollection.parse(json, dedup = true)
   }
 
   override def getCollections(correlationId: String): Seq[Feature] = {

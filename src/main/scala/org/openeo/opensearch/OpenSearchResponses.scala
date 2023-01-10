@@ -38,9 +38,8 @@ object OpenSearchResponses {
    * Properties that need some processing are better parsed in the apply functions.
    */
   case class GeneralProperties(published: Option[ZonedDateTime], orbitNumber: Option[Int],
-                               organisationName: Option[String], instrument: Option[String],
-                               updated: Option[ZonedDateTime]) {
-    def this() = this(None, None, None, None, None)
+                               organisationName: Option[String], instrument: Option[String]) {
+    def this() = this(None, None, None, None)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
@@ -69,7 +68,6 @@ object OpenSearchResponses {
     if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
 
     if (!isDuplicate(f1.generalProperties.published, f2.generalProperties.published)) return false
-    if (!isDuplicate(f1.generalProperties.updated, f2.generalProperties.updated)) return false
 
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
@@ -137,7 +135,10 @@ object OpenSearchResponses {
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
-    def parse(json: String, isUTM: Boolean = false): FeatureCollection = {
+    /**
+     * Should only dedup when getting Products. Not when getting collections
+     */
+    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -184,7 +185,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = dedupFeatures(features)
+            val featuresFiltered = if (dedup) dedupFeatures(features) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -196,7 +197,7 @@ object OpenSearchResponses {
   }
 
   object STACFeatureCollection {
-    def parse(json: String, toS3URL:Boolean=true): FeatureCollection = {
+    def parse(json: String, toS3URL: Boolean = true, dedup: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -233,7 +234,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = dedupFeatures(features)
+            val featuresFiltered = if (dedup) dedupFeatures(features) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -355,7 +356,7 @@ object OpenSearchResponses {
         })
     }
 
-    def parse(json: String): FeatureCollection = {
+    def parse(json: String, dedup: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -398,7 +399,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = dedupFeatures(features)
+            val featuresFiltered = if (dedup) dedupFeatures(features) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }

@@ -63,7 +63,7 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
       execute(getProducts)
     }
 
-    STACFeatureCollection.parse(json,toS3URL = s3URLS)
+    STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {

@@ -84,7 +84,7 @@ class OpenSearchResponsesTest {
   @Test
   def parseCreodiasDuppedFeature(): Unit = {
     val collectionsResponse = loadJsonResource("creodiasDuppedFeature.json")
-    val features = CreoFeatureCollection.parse(collectionsResponse).features
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(1, features.length)
 
@@ -126,7 +126,7 @@ class OpenSearchResponsesTest {
       creodiasFeatureSnippet.replaceAll("%startDate%", "2000-01-01T01:01:29.001Z") + ", \n" +
       creodiasFeatureSnippet.replaceAll("%startDate%", "2000-01-01T01:01:32.001Z") +
       "]}"
-    val features = CreoFeatureCollection.parse(composedJsonString).features
+    val features = CreoFeatureCollection.parse(composedJsonString, dedup = true).features
 
     // Even tough the images are pairwise equal, the first and the last are not.
     // So the dedup code is forced to consider them as separate
@@ -136,7 +136,7 @@ class OpenSearchResponsesTest {
   @Test
   def parseCreodiasDifferentGeom(): Unit = {
     val collectionsResponse = loadJsonResource("creodiasDifferentGeom.json")
-    val features = CreoFeatureCollection.parse(collectionsResponse).features
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(3, features.length)
   }
@@ -144,10 +144,9 @@ class OpenSearchResponsesTest {
   @Test
   def parseCollectionsResponse(): Unit = {
     val collectionsResponse = loadJsonResource("oscarsCollectionsResponse.json")
-    val features = FeatureCollection.parse(collectionsResponse).features
+    val features = FeatureCollection.parse(collectionsResponse, dedup=false).features
 
-    // Dedup will remove 'urn:eop:VITO:CGS_S2_RAD_L2_V200'
-    assertEquals(7, features.length)
+    assertEquals(8, features.length)
 
     // Order should be kept
     assertEquals("urn:eop:VITO:CGS_S2_FAPAR", features(0).id)
@@ -164,7 +163,7 @@ class OpenSearchResponsesTest {
   @Test
   def parseOscarsIssue6(): Unit = {
     val collectionsResponse = loadJsonResource("oscarsIssue6.json")
-    val features = FeatureCollection.parse(collectionsResponse).features
+    val features = FeatureCollection.parse(collectionsResponse, dedup=true).features
 
     // Dedup will remove 'urn:eop:VITO:TERRASCOPE_S2_TOC_V2:S2B_20180814T105019_31UFS_TOC_V200'
     assertEquals(1, features.length)

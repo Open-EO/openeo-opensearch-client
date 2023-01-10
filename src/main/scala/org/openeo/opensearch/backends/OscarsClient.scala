@@ -79,7 +79,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     }
 
     val json = withRetries { execute(getProducts) }
-    val resultCollection = FeatureCollection.parse(json, isUTM)
+    val resultCollection = FeatureCollection.parse(json, isUTM, dedup = true)
     if(dateRange.isDefined) {
       val dates = dateRange.get
       //oscars actually manages to return features that are outside of the daterange for coherence
@@ -97,7 +97,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
       .param("clientId", clientId(correlationId))
 
     val json = withRetries { execute(getCollections) }
-    FeatureCollection.parse(json).features
+    FeatureCollection.parse(json, dedup=false).features
   }
 
   override def equals(other: Any): Boolean = other match {
