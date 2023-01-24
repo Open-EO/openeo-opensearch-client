@@ -36,14 +36,26 @@ object OpenSearchClient {
     }
   }
 
-  def apply(endpoint: String, isUTM: Boolean = false, dateRegex: String = null, variables: util.List[String] = null, clientType: String = ""): OpenSearchClient = {
-    if (dateRegex!= null && variables != null) {
-      clientType match {
-        case "cgls" => new GlobalNetCDFSearchClient(endpoint, variables, dateRegex.r.unanchored)
-        case "agera5" => new Agera5SearchClient(endpoint, variables, dateRegex.r.unanchored)
-      }
+
+  /**
+   *  Create a new OpenSearchClient.
+   *
+   *  @param endpoint An URL or a glob pattern.
+   *  @param isUTM Whether the endpoint is in UTM.
+ *                 This parameter is not used for glob patterns.
+   *  @param dateRegex A regex to extract the date from a filename.
+*                      This parameter is not used for URL based endpoints.
+   *  @param bands A list of bands to extract from the files.
+   *               This parameter is not used for URL based endpoints.
+   *  @param globClientType The type of glob based client to use. Currently supported: "cgls", "agera5".
+   *                        This parameter is not used for URL based endpoints.
+   */
+  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], globClientType: String): OpenSearchClient = {
+    globClientType match {
+      case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
+      case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
+      case _ => apply(new URL(endpoint), isUTM)
     }
-    apply(new URL(endpoint), isUTM)
   }
 }
 
