@@ -2,7 +2,7 @@ package org.openeo.opensearch
 
 import geotrellis.vector.ProjectedExtent
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
-import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
+import org.openeo.opensearch.backends.{Agera5SearchClient, CreodiasClient, GlobalNetCDFSearchClient, OscarsClient, STACClient}
 import org.slf4j.LoggerFactory
 import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
 
@@ -10,6 +10,7 @@ import java.io.IOException
 import java.net.{SocketTimeoutException, URL}
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, OffsetTime, ZonedDateTime}
+import java.util
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
@@ -26,16 +27,24 @@ object OpenSearchClient {
   private val requestCounter = new AtomicLong
 
   // = new URL("http://oscars-01.vgt.vito.be:8080")
-  def apply(endpoint:URL, isUTM:Boolean = false):OpenSearchClient = {
+  def apply(endpoint: URL, isUTM: Boolean = false):OpenSearchClient = {
     endpoint.toString match {
       case s if s.contains("creo") => CreodiasClient
       case s if s.contains("aws") => new STACClient(endpoint)
       case s if s.contains("c-scale") => new STACClient(endpoint, false)
       case _ => new OscarsClient(endpoint, isUTM)
     }
-
   }
 
+  def apply(endpoint: String, isUTM: Boolean = false, dateRegex: String = null, variables: util.List[String] = null, clientType: String = ""): OpenSearchClient = {
+    if (dateRegex!= null && variables != null) {
+      clientType match {
+        case "cgls" => new GlobalNetCDFSearchClient(endpoint, variables, dateRegex.r.unanchored)
+        case "agera5" => new Agera5SearchClient(endpoint, variables, dateRegex.r.unanchored)
+      }
+    }
+    apply(new URL(endpoint), isUTM)
+  }
 }
 
 abstract class OpenSearchClient {
