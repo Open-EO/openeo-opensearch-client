@@ -3,7 +3,6 @@ package org.openeo.opensearch
 import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
-import geotrellis.proj4.CRS
 import geotrellis.proj4.util.UTM
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
@@ -51,10 +50,13 @@ object OpenSearchResponses {
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
     if(tileID.isDefined && crs.isDefined && crs.get.proj4jCrs.getProjection.getName == "utm") {
-      val bbox = MGRS.mgrsToSentinel2Extent(tileID.get)
-      rasterExtent = Some(bbox)
+      val bboxUTM = MGRS.mgrsToSentinel2Extent(tileID.get)
+      rasterExtent = Some(bboxUTM)
 
+    }else if(crs.contains(LatLng)){
+      rasterExtent = Some(bbox)
     }
+
   }
 
   private def isDuplicate(d1: Option[ZonedDateTime], d2: Option[ZonedDateTime]): Boolean = {
