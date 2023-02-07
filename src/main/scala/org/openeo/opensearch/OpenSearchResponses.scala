@@ -4,6 +4,7 @@ import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.util.UTM
+import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
