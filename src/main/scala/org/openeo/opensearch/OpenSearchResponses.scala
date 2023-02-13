@@ -78,14 +78,14 @@ object OpenSearchResponses {
     if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
     if (f1.resolution != f2.resolution) return false
 
-    if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
+    if (f1.geometry.isDefined && !f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
     true
   }
 
   /**
    * Should be under O(n*n)
    */
-  private def dedupFeatures(features: Array[Feature]): Array[Feature] = {
+  def dedupFeatures(features: Array[Feature]): Array[Feature] = {
     val featuresSorted = features.sortBy(_.nominalDate)
 
     val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()
