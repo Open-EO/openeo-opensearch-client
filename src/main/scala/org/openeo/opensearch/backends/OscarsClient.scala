@@ -20,6 +20,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
         .param("sortKeys", key)
         .param("count", "1")
         .params(attributeValues.mapValues(_.toString).toSeq)
+        .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
       try  {
         val json = withRetries { execute(getProducts) }
