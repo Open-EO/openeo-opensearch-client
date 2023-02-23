@@ -127,7 +127,7 @@ class OpenSearchClientTest {
     checkGetCollections(new STACClient())
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March
+  @Ignore
   @Test
   def testSTACGetCollectionsCScale(): Unit = {
     checkGetCollections(new STACClient(new URL("https://resto.c-scale.zcu.cz/")))
