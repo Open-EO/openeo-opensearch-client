@@ -52,6 +52,7 @@ class OpenSearchClientTest {
     assertTrue(aFeature.geometry.isDefined)
   }
 
+  @Ignore // Old Finder API (RESTO) will be deprecated in March
   @Test
   def testCreoGetProductsDEM(): Unit = {
     val openSearch = CreodiasClient
@@ -115,6 +116,7 @@ class OpenSearchClientTest {
     checkGetCollections(client)
   }
 
+  @Ignore // Old Finder API (RESTO) will be deprecated in March
   @Test
   def testCreoGetCollections(): Unit = {
     checkGetCollections(CreodiasClient)
@@ -125,7 +127,7 @@ class OpenSearchClientTest {
     checkGetCollections(new STACClient())
   }
 
-  @Ignore
+  @Ignore // Old Finder API (RESTO) will be deprecated in March
   @Test
   def testSTACGetCollectionsCScale(): Unit = {
     checkGetCollections(new STACClient(new URL("https://resto.c-scale.zcu.cz/")))
@@ -158,6 +160,7 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
+  @Ignore // Old Finder API (RESTO) will be deprecated in March
   @Test
   def testCreoSentinel1(): Unit = {
     val openSearch = CreodiasClient
