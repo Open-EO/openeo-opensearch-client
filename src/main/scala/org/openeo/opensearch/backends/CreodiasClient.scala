@@ -48,6 +48,7 @@ object CreodiasClient extends OpenSearchClient {
       .param("status", "0|34|37")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
@@ -76,6 +77,7 @@ object CreodiasClient extends OpenSearchClient {
   override def getCollections(correlationId: String): Seq[Feature] = {
     val getCollections = http(collections)
       .option(HttpOptions.followRedirects(true))
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
     val json = withRetries { execute(getCollections) }
     CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null,None))
