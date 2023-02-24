@@ -53,7 +53,6 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
       .param("limit", "100")
       .param("bbox", bboxParam)
       .param("page", page.toString)
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
     if (dateRange.isDefined) {
       getProducts = getProducts
@@ -70,7 +69,6 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
     val getCollections = http(s"$endpoint/collections")
       .option(HttpOptions.followRedirects(true))
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
 
     val json = withRetries { execute(getCollections) }

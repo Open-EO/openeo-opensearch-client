@@ -67,7 +67,6 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
       .param("startIndex", page.toString)
       .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend").contains(_)).toSeq)
       .param("clientId", clientId(correlationId))
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
@@ -97,7 +96,6 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     val getCollections = http(s"$endpoint/collections")
       .option(HttpOptions.followRedirects(true))
       .param("clientId", clientId(correlationId))
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
     val json = withRetries { execute(getCollections) }
     FeatureCollection.parse(json, dedup=false).features
