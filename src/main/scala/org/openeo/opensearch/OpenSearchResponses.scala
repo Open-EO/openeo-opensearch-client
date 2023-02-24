@@ -3,8 +3,8 @@ package org.openeo.opensearch
 import _root_.io.circe.parser.decode
 import cats.syntax.either._
 import cats.syntax.show._
-import geotrellis.proj4.CRS
 import geotrellis.proj4.util.UTM
+import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
@@ -51,10 +51,13 @@ object OpenSearchResponses {
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
     } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
     if(tileID.isDefined && crs.isDefined && crs.get.proj4jCrs.getProjection.getName == "utm") {
-      val bbox = MGRS.mgrsToSentinel2Extent(tileID.get)
-      rasterExtent = Some(bbox)
+      val bboxUTM = MGRS.mgrsToSentinel2Extent(tileID.get)
+      rasterExtent = Some(bboxUTM)
 
+    }else if(crs.contains(LatLng)){
+      rasterExtent = Some(bbox)
     }
+
   }
 
   private def isDuplicate(d1: Option[ZonedDateTime], d2: Option[ZonedDateTime]): Boolean = {
@@ -75,14 +78,14 @@ object OpenSearchResponses {
     if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
     if (f1.resolution != f2.resolution) return false
 
-    if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
+    if (f1.geometry.isDefined && !f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
     true
   }
 
   /**
    * Should be under O(n*n)
    */
-  private def dedupFeatures(features: Array[Feature]): Array[Feature] = {
+  def dedupFeatures(features: Array[Feature]): Array[Feature] = {
     val featuresSorted = features.sortBy(_.nominalDate)
 
     val dupClusters = scala.collection.mutable.Map[Feature, ListBuffer[Feature]]()

@@ -212,6 +212,15 @@ class OpenSearchResponsesTest {
     }
   }
 
+  @Test
+  def latlonResponse():Unit = {
+    val productsResponse = loadJsonResource("latlonResponse.json")
+    val features = FeatureCollection.parse(productsResponse, dedup = true).features
+    assertEquals(1, features.length)
+    assertEquals(LatLng,features(0).crs.get)
+    assertEquals(features(0).rasterExtent.get,features(0).bbox)
+  }
+
   private def stackTrace(e: Throwable): String = {
     val s = new StringWriter
     val out = new PrintWriter(s)

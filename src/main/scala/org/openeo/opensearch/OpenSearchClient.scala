@@ -2,7 +2,7 @@ package org.openeo.opensearch
 
 import geotrellis.vector.ProjectedExtent
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
-import org.openeo.opensearch.backends.{Agera5SearchClient, CreodiasClient, GlobalNetCDFSearchClient, OscarsClient, STACClient}
+import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
 import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
 
@@ -54,6 +54,7 @@ object OpenSearchClient {
     globClientType match {
       case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
+      case "globspatialonly" => new GeotiffNoDateSearchClient(endpoint, bands)
       case _ => apply(new URL(endpoint), isUTM)
     }
   }

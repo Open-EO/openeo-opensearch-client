@@ -1,13 +1,15 @@
 package org.openeo.opensearch.backends
 
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import org.openeo.opensearch.OpenSearchResponses.Link
-import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
+import geotrellis.proj4.LatLng
+import geotrellis.raster.GridExtent
 import geotrellis.raster.gdal.{GDALRasterSource, GDALWarpOptions}
 import geotrellis.store.hadoop.util.HdfsUtils
 import geotrellis.vector.ProjectedExtent
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.openeo.opensearch.OpenSearchResponses.Link
+import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
 
 import java.net.URI
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
@@ -16,7 +18,7 @@ import java.util.concurrent.TimeUnit.HOURS
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 import scala.util.matching.Regex
 
-class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex) extends OpenSearchClient {
+class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val gridExtent:Option[GridExtent[Long]]= Option.empty) extends OpenSearchClient {
 
   protected def deriveDate(filename: String, date: Regex): ZonedDateTime = filename match {
     case date(year, month, day) => LocalDate.of(year.toInt, month.toInt, day.toInt).atStartOfDay(ZoneId.of("UTC"))
@@ -50,14 +52,27 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
         .takeWhile { case (date, _) => !(date isAfter to) }
     }
 
-    val datedRasterSources: Array[(ZonedDateTime, String, GDALRasterSource)] = sortedDates
-      .flatMap { case (date, path) => bands.asScala.map(v=>(date, path, GDALRasterSource(s"""NETCDF:"$path":$v""",GDALWarpOptions(alignTargetPixels = false)))) }
+    if(gridExtent.isEmpty) {
+      val datedRasterSources: Array[(ZonedDateTime, String, GDALRasterSource)] = sortedDates
+        .flatMap { case (date, path) => bands.asScala.map(v => (date, path, GDALRasterSource(s"""NETCDF:"$path":$v""", GDALWarpOptions(alignTargetPixels = false)))) }
 
-    val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map{ case (date: ZonedDateTime, path: String, source: GDALRasterSource) =>
-      OpenSearchResponses.Feature(s"${path}", source.extent, date, bands.asScala.map(v=>Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width.toInt), None)
+      val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map { case (date: ZonedDateTime, path: String, source: GDALRasterSource) =>
+        OpenSearchResponses.Feature(s"${path}", source.extent, date, bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width.toInt), None)
+      }
+
+      OpenSearchResponses.dedupFeatures(features).toSeq
+    }else{
+      val datedRasterSources: Array[(ZonedDateTime, String)] = sortedDates
+        .flatMap { case (date, path) => bands.asScala.map(v => (date, path)) }
+
+      val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map { case (date: ZonedDateTime, path: String) =>
+        OpenSearchResponses.Feature(s"${path}", gridExtent.get.extent, date, bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(gridExtent.get.cellSize.width.toInt), None,geometry=None,crs=Some(LatLng),rasterExtent = Some(gridExtent.get.extent))
+      }
+
+      OpenSearchResponses.dedupFeatures(features).toSeq
+
     }
 
-    features.toSeq
   }
 
   override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = ???
