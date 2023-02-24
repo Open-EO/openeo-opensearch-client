@@ -15,12 +15,11 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
 
   def getStartAndEndDate(collectionId: String, attributeValues: Map[String, Any] = Map()): Option[(LocalDate, LocalDate)] = {
     def getFirstProductWithSortKey(key: String) = {
-      val getProducts = Http(s"$endpoint/products")
+      val getProducts = http(s"$endpoint/products")
         .param("collection", collectionId)
         .param("sortKeys", key)
         .param("count", "1")
         .params(attributeValues.mapValues(_.toString).toSeq)
-        .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
       try  {
         val json = withRetries { execute(getProducts) }
