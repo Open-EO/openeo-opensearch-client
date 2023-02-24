@@ -367,6 +367,31 @@ object OpenSearchResponses {
         })
     }
 
+    private def ensureValidGeometry(geometry: Json): Json = {
+      // TODO: This is required because the old Creodias API can return incorrect MultiPolygon geometries.
+      // This can be removed once the API is fixed.
+      val c = geometry.hcursor
+      val geometryType = c.downField("type").as[String].getOrElse("")
+      if (geometryType == "MultiPolygon") {
+        val coordinates = c.downField("coordinates").as[Json].getOrElse(Json.Null)
+        var depth = 0
+        var current = coordinates
+        while (current.isArray) {
+          depth += 1
+          current = current.asArray.get.head
+        }
+        if (depth == 3) {
+          // MultiPolygons should always have a depth of 4.
+          // val newCoordinates = Json.arr(coordinates)
+          return Json.obj(
+            ("type", Json.fromString("Polygon")),
+            ("coordinates", coordinates)
+          )
+        }
+      }
+      geometry
+    }
+
     def parse(json: String, dedup: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
@@ -378,8 +403,7 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
           } yield {
-
-            val theGeometry = geometry.toString().parseGeoJson[Geometry]
+            val theGeometry = ensureValidGeometry(geometry).toString().parseGeoJson[Geometry]
             val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =

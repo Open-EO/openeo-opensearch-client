@@ -52,7 +52,7 @@ class OpenSearchClientTest {
     assertTrue(aFeature.geometry.isDefined)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March
+  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
   @Test
   def testCreoGetProductsDEM(): Unit = {
     val openSearch = CreodiasClient
@@ -116,7 +116,7 @@ class OpenSearchClientTest {
     checkGetCollections(client)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March
+  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
   @Test
   def testCreoGetCollections(): Unit = {
     checkGetCollections(CreodiasClient)
@@ -160,7 +160,7 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March
+  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
   @Test
   def testCreoSentinel1(): Unit = {
     val openSearch = CreodiasClient
