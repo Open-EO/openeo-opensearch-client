@@ -23,8 +23,7 @@ class CreodiasAPITest {
                           processingLevel: String, page: Int): String = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
     val collection = s"https://finder.creodias.eu/resto/api/collections/$collectionId/search.json"
-    val http = Http(collection).option(HttpOptions.followRedirects(true))
-    var getProducts = http
+    var getProducts = Http(collection).option(HttpOptions.followRedirects(true))
       .param("processingLevel", processingLevel)
       .param("box", Array(xMin, yMin, xMax, yMax) mkString ",")
       .param("sortParam", "startDate") // paging requires deterministic order
@@ -34,6 +33,7 @@ class CreodiasAPITest {
       .param("status", "0|34|37")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
     if (dateRange.isDefined) {
       getProducts = getProducts
         .param("startDate", dateRange.get._1 format ISO_INSTANT)

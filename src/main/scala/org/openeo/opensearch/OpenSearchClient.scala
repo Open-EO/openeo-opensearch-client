@@ -99,7 +99,10 @@ abstract class OpenSearchClient {
 
   def getCollections(correlationId: String = ""): Seq[Feature]
 
-  protected def http(url: String): HttpRequest = Http(url).option(HttpOptions.followRedirects(true))
+  protected def http(url: String): HttpRequest =
+    Http(url)
+      .option(HttpOptions.followRedirects(true))
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
 
   protected def clientId(correlationId: String): String = {
     if (correlationId.isEmpty) correlationId
