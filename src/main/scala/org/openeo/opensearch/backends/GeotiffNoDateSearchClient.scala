@@ -52,7 +52,7 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
 
     val features = datedRasterSources.map{ case (path: String, source: GeoTiffRasterSource) =>
 
-      OpenSearchResponses.Feature(s"${path}", source.extent, ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.toSeq.headOption)), Some(source.gridExtent.cellSize.width), None,None, crs = Some(crs))
+      OpenSearchResponses.Feature(s"${path}", source.extent.reproject(source.crs,LatLng), ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.toSeq.headOption)), Some(source.gridExtent.cellSize.width), None,None, crs = Some(source.crs),rasterExtent = Some(source.extent))
     }
 
     features.toSeq
