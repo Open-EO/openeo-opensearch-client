@@ -72,6 +72,7 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
       rasterExtent = Option.empty
     ))
   }
+
   override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
     val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
     OpenSearchResponses.FeatureCollection(products.length, products)
