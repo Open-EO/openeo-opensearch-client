@@ -5,7 +5,7 @@ import geotrellis.proj4.LatLng
 import geotrellis.raster.GridExtent
 import geotrellis.raster.gdal.{GDALRasterSource, GDALWarpOptions}
 import geotrellis.store.hadoop.util.HdfsUtils
-import geotrellis.vector.ProjectedExtent
+import geotrellis.vector.{Extent, ProjectedExtent}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.openeo.opensearch.OpenSearchResponses.Link
@@ -75,6 +75,23 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
 
   }
 
-  override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = ???
-  override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = ???
+  override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = {
+    val worldExtent = Extent(-180.0, -90.0, 180.0, 90.0)
+    Seq(OpenSearchResponses.Feature(
+      "globalnetcdf:" + dataGlob,
+      worldExtent,
+      ZonedDateTime.parse("2020-01-01T00:00:00Z"),
+      Array(),
+      Option.empty,
+      None,
+      geometry=Some(worldExtent.toPolygon()),
+      crs=Option.empty,
+      rasterExtent = Option.empty
+    ))
+  }
+
+  override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
+    val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
+    OpenSearchResponses.FeatureCollection(products.length, products)
+  }
 }
