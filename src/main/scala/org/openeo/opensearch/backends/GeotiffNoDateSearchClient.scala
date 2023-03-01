@@ -4,7 +4,7 @@ import com.google.common.cache.{CacheBuilder, CacheLoader}
 import geotrellis.proj4.LatLng
 import geotrellis.raster.geotiff.{GeoTiffPath, GeoTiffRasterSource}
 import geotrellis.store.hadoop.util.HdfsUtils
-import geotrellis.vector.ProjectedExtent
+import geotrellis.vector.{Extent, ProjectedExtent}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.openeo.opensearch.OpenSearchResponses.Link
@@ -58,6 +58,22 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
     features.toSeq
   }
 
-  override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = ???
-  override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = ???
+  override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = {
+    val worldExtent = Extent(-180.0, -90.0, 180.0, 90.0)
+    Seq(OpenSearchResponses.Feature(
+      "geotiffnodate:" + dataGlob,
+      worldExtent,
+      ZonedDateTime.parse(defaultDate),
+      Array(),
+      Option.empty,
+      None,
+      geometry=Some(worldExtent.toPolygon()),
+      crs=Option.empty,
+      rasterExtent = Option.empty
+    ))
+  }
+  override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
+    val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
+    OpenSearchResponses.FeatureCollection(products.length, products)
+  }
 }
