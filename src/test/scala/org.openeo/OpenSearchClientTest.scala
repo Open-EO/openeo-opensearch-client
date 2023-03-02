@@ -9,6 +9,7 @@ import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
 import java.net.URL
 import java.time.{LocalDate, ZonedDateTime}
+import java.util
 import scala.collection.{Map, mutable}
 
 class OpenSearchClientTest {
@@ -37,7 +38,7 @@ class OpenSearchClientTest {
       collectionId = "Sentinel2",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->90.0), correlationId = "hello", "LEVEL2A"
+      Map[String, Any]("eo:cloud_cover"->90.0), correlationId = "hello", "S2MSI2A"
       )
 
     println(s"got ${features.size} features")
@@ -52,7 +53,7 @@ class OpenSearchClientTest {
     assertTrue(aFeature.geometry.isDefined)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
+
   @Test
   def testCreoGetProductsDEM(): Unit = {
     val openSearch = CreodiasClient
@@ -61,7 +62,7 @@ class OpenSearchClientTest {
       collectionId = "CopDem",
       (LocalDate.of(2009, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("productType"->"SAR_DGE_30_PUBLIC", "resolution"->30), correlationId = "hello", ""
+      Map[String, Any]("productType"->"DGE_30", "resolution"->30), correlationId = "hello", ""
     )
 
     println(s"got ${features.size} features")
@@ -71,7 +72,8 @@ class OpenSearchClientTest {
     val aFeature = features.head
     val band02 = aFeature.links.filter(_.title.get.contains("DEM"))
     assertTrue(band02.nonEmpty)
-    assertTrue(band02(0).href.toString.endsWith("DEM.tif"))
+    val location = band02(0).href.toString
+    assertTrue(location.endsWith("DEM.tif"))
 
   }
 
@@ -160,7 +162,7 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
+
   @Test
   def testCreoSentinel1(): Unit = {
     val openSearch = CreodiasClient
@@ -169,7 +171,7 @@ class OpenSearchClientTest {
       collectionId = "Sentinel1",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any](), "hello", ""
+      Map[String, Any](), "hello", "LEVEL1"
       )
 
     println(s"got ${features.size} features")

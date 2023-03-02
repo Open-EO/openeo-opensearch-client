@@ -1,18 +1,18 @@
 package org.openeo.opensearch.backends
 
-import java.time.{ZoneId, ZonedDateTime}
-import java.time.format.DateTimeFormatter.ISO_INSTANT
-import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import scalaj.http.HttpOptions
 
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter.ISO_INSTANT
 import scala.collection.Map
 
 object CreodiasClient extends OpenSearchClient {
   private val collections = "https://finder.creodias.eu/resto/collections.json"
-  private def collection(collectionId: String) = s"https://finder.creodias.eu/resto/api/collections/$collectionId/search.json"
+  private def collection(collectionId: String) = s"https://catalogue.dataspace.copernicus.eu/resto/api/collections/$collectionId/search.json"
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
@@ -39,7 +39,6 @@ object CreodiasClient extends OpenSearchClient {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
     var getProducts = http(collection(collectionId))
-      .param("processingLevel", processingLevel)
       .param("box", Array(xMin, yMin, xMax, yMax) mkString ",")
       .param("sortParam", "startDate") // paging requires deterministic order
       .param("sortOrder", "ascending")
@@ -52,6 +51,10 @@ object CreodiasClient extends OpenSearchClient {
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
       getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
+    }
+
+    if(!processingLevel.isEmpty) {
+      getProducts = getProducts.param("processingLevel", processingLevel)
     }
 
     val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
