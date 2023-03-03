@@ -30,6 +30,7 @@ object OpenSearchClient {
   def apply(endpoint: URL, isUTM: Boolean = false):OpenSearchClient = {
     endpoint.toString match {
       case s if s.contains("creo") => CreodiasClient
+      case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => CreodiasClient       
       case s if s.contains("aws") => new STACClient(endpoint)
       case s if s.contains("c-scale") => new STACClient(endpoint, false)
       case _ => new OscarsClient(endpoint, isUTM)
