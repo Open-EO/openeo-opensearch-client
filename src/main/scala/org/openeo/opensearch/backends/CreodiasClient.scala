@@ -6,13 +6,19 @@ import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import scalaj.http.HttpOptions
 
+import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import scala.collection.Map
 
-object CreodiasClient extends OpenSearchClient {
-  private val collections = "https://finder.creodias.eu/resto/collections.json"
-  private def collection(collectionId: String) = s"https://catalogue.dataspace.copernicus.eu/resto/api/collections/$collectionId/search.json"
+object CreodiasClient{
+
+  def apply(): CreodiasClient = {new CreodiasClient()}
+}
+
+class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto")) extends OpenSearchClient {
+  private val collections = s"${endpoint.toString}/collections.json"
+  private def collection(collectionId: String) = s"${endpoint.toString}/api/collections/$collectionId/search.json"
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],

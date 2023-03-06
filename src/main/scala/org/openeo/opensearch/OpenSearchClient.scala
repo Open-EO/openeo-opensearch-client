@@ -29,8 +29,8 @@ object OpenSearchClient {
   // = new URL("http://oscars-01.vgt.vito.be:8080")
   def apply(endpoint: URL, isUTM: Boolean = false):OpenSearchClient = {
     endpoint.toString match {
-      case s if s.contains("creo") => CreodiasClient
-      case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => CreodiasClient       
+      case s if s.contains("creo") => CreodiasClient(endpoint)
+      case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => CreodiasClient(endpoint)
       case s if s.contains("aws") => new STACClient(endpoint)
       case s if s.contains("c-scale") => new STACClient(endpoint, false)
       case _ => new OscarsClient(endpoint, isUTM)

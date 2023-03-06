@@ -25,7 +25,7 @@ class CreodiasAPITest {
     val attributeValues = Map[String, Any]("processingLevel" -> "LEVEL1", "sensorMode" -> "IW", "productType" -> "GRD")
 
     // The parser in getProducts should be able to handle these incorrect multipolygons.
-    CreodiasClient.getProducts(
+    new CreodiasClient().getProducts(
       "Sentinel1", Some(fromDate, toDate),
       bbox, attributeValues, "", ""
     )

@@ -32,7 +32,7 @@ class OpenSearchClientTest {
 
   @Test
   def testCreoGetProducts(): Unit = {
-    val openSearch = CreodiasClient
+    val openSearch = CreodiasClient()
 
     val features = openSearch.getProducts(
       collectionId = "Sentinel2",
@@ -56,7 +56,7 @@ class OpenSearchClientTest {
 
   @Test
   def testCreoGetProductsDEM(): Unit = {
-    val openSearch = CreodiasClient
+    val openSearch = new CreodiasClient()
 
     val features = openSearch.getProducts(
       collectionId = "CopDem",
@@ -121,7 +121,7 @@ class OpenSearchClientTest {
   @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
   @Test
   def testCreoGetCollections(): Unit = {
-    checkGetCollections(CreodiasClient)
+    checkGetCollections(new CreodiasClient())
   }
 
   @Test
@@ -165,7 +165,7 @@ class OpenSearchClientTest {
 
   @Test
   def testCreoSentinel1(): Unit = {
-    val openSearch = CreodiasClient
+    val openSearch = new CreodiasClient()
 
     val features = openSearch.getProducts(
       collectionId = "Sentinel1",
