@@ -4,11 +4,13 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
-import scalaj.http.{Http, HttpOptions, HttpStatusException}
+import scalaj.http.{HttpOptions, HttpStatusException}
 
 import java.net.URL
+import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import java.time.{LocalDate, ZonedDateTime}
+import java.util.Locale
 import scala.collection.Map
 
 class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSearchClient {
@@ -49,6 +51,8 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     from(page = 1)
   }
 
+  val format = new DecimalFormat("0.#######", DecimalFormatSymbols.getInstance(Locale.ROOT))
+
   override protected def getProductsFromPage(collectionId: String,
                                      dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                                      bbox: ProjectedExtent,
@@ -61,7 +65,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
 
     var getProducts = http(s"$endpoint/products")
       .param("collection", collectionId)
-      .param("bbox", Array(xMin, yMin, xMax, yMax) mkString ",")
+      .param("bbox", Array(format.format(xMin), format.format(yMin), format.format(xMax), format.format(yMax)) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
       .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend").contains(_)).toSeq)
