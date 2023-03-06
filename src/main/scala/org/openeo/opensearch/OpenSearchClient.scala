@@ -118,14 +118,28 @@ abstract class OpenSearchClient {
     val response = request.asString
 
     logger.info(s"$url returned ${response.code}")
+    if(response.isError) {
+      if(response.contentType.contains("application/json") || response.contentType.contains("application/geo+json;charset=UTF-8")) {
+        io.circe.parser.parse(response.body) match {
+          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: $response.body")
+          case Right(json) => throw new IOException(s"Exception while evaluating catalog request $url: ${json.findAllByKey("exceptionText").mkString(";")} ")
+        }
 
-    val json = response.throwError.body // note: the HttpStatusException's message doesn't include the response body
+        throw new IOException(s"$url returned an empty body")
+      }else{
+        throw new IOException(s"Exception while evaluating catalog request $url: $response.body")
 
-    if (json.trim.isEmpty) {
-      throw new IOException(s"$url returned an empty body")
+      }
+    }else{
+      val json = response.body // note: the HttpStatusException's message doesn't include the response body
+
+      if (json.trim.isEmpty) {
+        throw new IOException(s"$url returned an empty body")
+      }
+      json
     }
 
-    json
+
   }
 
   protected def withRetries[R](action: => R): R = {
