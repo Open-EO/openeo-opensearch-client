@@ -68,12 +68,17 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
       .param("bbox", Array(format.format(xMin), format.format(yMin), format.format(xMax), format.format(yMax)) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
-      .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend").contains(_)).toSeq)
+      .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
       .param("clientId", clientId(correlationId))
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
       getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
+    }
+
+    val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
+    if (orbitdirection.isDefined) {
+      getProducts = getProducts.param("orbitDirection", orbitdirection.get.toString.toLowerCase)
     }
 
     if (dateRange.isDefined) {
