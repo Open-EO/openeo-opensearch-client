@@ -78,7 +78,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
 
     val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
     if (orbitdirection.isDefined) {
-      getProducts = getProducts.param("orbitDirection", orbitdirection.get.toString.toLowerCase)
+      getProducts = getProducts.param("orbitDirection", orbitdirection.get.toString.toUpperCase)
     }
 
     if (dateRange.isDefined) {
