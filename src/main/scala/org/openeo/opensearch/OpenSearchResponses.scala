@@ -28,7 +28,7 @@ import scala.xml.{Node, XML}
 object OpenSearchResponses {
 
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
-  implicit val decodeUrl: Decoder[URI] = Decoder.decodeString.map(URI.create)
+  implicit val decodeUrl: Decoder[URI] = Decoder.decodeString.map(s => URI.create(s.trim))
   implicit val decodeDate: Decoder[ZonedDateTime] = Decoder.decodeString.map(s => ZonedDateTime.parse(s.split('/')(0)))
 
   case class Link(href: URI, title: Option[String])
