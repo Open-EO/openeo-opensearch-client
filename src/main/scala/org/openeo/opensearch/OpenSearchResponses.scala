@@ -227,7 +227,7 @@ object OpenSearchResponses {
               val href = t._2.href
               if(toS3URL){
                 val bucket = href.getHost.split('.')(0)
-                val s3href = URI.create("s3://" + bucket +href.getPath)
+                val s3href = URI.create("s3://" + bucket + href.getPath)
                 Link(s3href, Some(t._1))
               }
               else{

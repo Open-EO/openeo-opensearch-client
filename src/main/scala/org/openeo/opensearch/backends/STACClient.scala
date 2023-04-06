@@ -12,11 +12,17 @@ import java.time.format.DateTimeFormatter.ISO_DATE_TIME
 import scala.collection.Map
 
 /**
- *  {'collections': ['sentinel-s2-l1c'], 'query': {'eo:cloud_cover': {'lte': '10'}, 'data_coverage': {'gt': '80'}}}
- * @param endpoint
+ * SpatioTemporal Asset Catalog (STAC) client.
+ * https://stacspec.org/en/about/stac-spec/
+ *
+ * @param endpoint The endpoint to retrieve the STAC features from.
+ * @param s3URLS Whether the asset links in the STAC features should be converted to S3 bucket URLs.
+ *               E.g. Conversion
+ *               From: https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/SCL.tif
+ *               To: s3://sentinel-cogs/sentinel-s2-l2a-cogs/SCL.tif
  */
-class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.element84.com/v0"),
-                     private val s3URLS: Boolean = true) extends OpenSearchClient {
+class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.element84.com/v0"),
+                 private val s3URLS: Boolean = true) extends OpenSearchClient {
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
@@ -25,10 +31,10 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
                            processingLevel: String): Seq[Feature] = {
     def from(page: Int): Seq[Feature] = {
       val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
-                                                                          dateRange, bbox,
-                                                                          attributeValues, correlationId,
-                                                                          processingLevel,
-                                                                          page)
+        dateRange, bbox,
+        attributeValues, correlationId,
+        processingLevel,
+        page)
       if (itemsPerPage <= 0) Seq() else features ++ from(page + 1)
     }
 
@@ -36,10 +42,10 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
   }
 
   override protected def getProductsFromPage(collectionId: String,
-                                     dateRange: Option[(ZonedDateTime, ZonedDateTime)],
-                                     bbox: ProjectedExtent,
-                                     attributeValues: Map[String, Any], correlationId: String,
-                                     processingLevel: String, page: Int): FeatureCollection = {
+                                             dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                             bbox: ProjectedExtent,
+                                             attributeValues: Map[String, Any], correlationId: String,
+                                             processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
     var collectionsParam = "[\"" + collectionId + "\"]"
     var bboxParam = "[" + (Array(xMin, yMin, xMax, yMax) mkString ",") + "]"
@@ -71,8 +77,10 @@ class STACClient(private val endpoint: URL=new URL("https://earth-search.aws.ele
       .option(HttpOptions.followRedirects(true))
 
 
-    val json = withRetries { execute(getCollections) }
-    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null,None))
+    val json = withRetries {
+      execute(getCollections)
+    }
+    STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, None))
   }
 
   override def equals(other: Any): Boolean = other match {
