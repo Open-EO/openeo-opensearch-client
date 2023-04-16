@@ -47,11 +47,11 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
                                              attributeValues: Map[String, Any], correlationId: String,
                                              processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
-    var collectionsParam = "[\"" + collectionId + "\"]"
-    var bboxParam = "[" + (Array(xMin, yMin, xMax, yMax) mkString ",") + "]"
-    if (endpoint.getHost.contains("c-scale.zcu.cz")) {
-      collectionsParam = collectionId
-      bboxParam = Array(xMin, yMin, xMax, yMax) mkString ","
+    var collectionsParam = collectionId
+    var bboxParam = Array(xMin, yMin, xMax, yMax) mkString ","
+    if (endpoint.getHost.contains("earth-search.aws.element84.com")) {
+      collectionsParam = "[\"" + collectionId + "\"]"
+      bboxParam = "[" + (Array(xMin, yMin, xMax, yMax) mkString ",") + "]"
     }
 
     var getProducts = http(s"$endpoint/search")
