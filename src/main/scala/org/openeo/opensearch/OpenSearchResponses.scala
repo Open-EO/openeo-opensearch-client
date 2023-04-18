@@ -413,14 +413,12 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            if(id.endsWith(".SAFE")){
-              val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
-            }else if(id.contains("COP-DEM_GLO-30-DGED")){
+            if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
+              val all_links = getFilePathsFromManifest(id)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }
