@@ -19,7 +19,17 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 import scala.util.matching.Regex
 
 
-class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex) extends OpenSearchClient {
+object Agera5SearchClient{
+  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String]): OpenSearchClient = {
+    new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
+
+  }
+  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], bandMarker: String): OpenSearchClient = {
+      new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored, bandMarker)
+  }
+}
+
+class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker:String = "dewpoint-temperature" ) extends OpenSearchClient {
   private val crs = LatLng
 
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
@@ -30,14 +40,13 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
   }
 
   private def getBandFiles(dewPointTemperatureFile: String): Seq[(String, String)] = {
-    val dewPointTemperatureMarker = "dewpoint-temperature"
 
-    require(dewPointTemperatureFile contains dewPointTemperatureMarker)
+    require(dewPointTemperatureFile contains bandMarker)
 
     bands
       .asScala
       .toArray
-      .map(replacement => (dewPointTemperatureFile.replace(dewPointTemperatureMarker, replacement), replacement))
+      .map(replacement => (dewPointTemperatureFile.replace(bandMarker, replacement), replacement))
   }
 
   private val pathsCache = CacheBuilder
