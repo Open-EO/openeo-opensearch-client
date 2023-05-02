@@ -301,7 +301,7 @@ object OpenSearchResponses {
           if (creoClient.isDefined) {
             return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(s"${path.toString.replace("/eodata/", "")}/${metadatafile}").build())
           } else {
-            val url = path.replace("/eodata", "https://finder.creodias.eu/files")
+            val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
             try {
               return uri.resolve(s"${uri.getPath}/$metadatafile").toURL
