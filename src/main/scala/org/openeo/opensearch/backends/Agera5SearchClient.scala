@@ -27,6 +27,10 @@ object Agera5SearchClient{
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], bandMarker: String): OpenSearchClient = {
       new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored, bandMarker)
   }
+
+  def create(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], bandMarker: String): OpenSearchClient = {
+    new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored, bandMarker)
+  }
 }
 
 class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker:String = "dewpoint-temperature" ) extends OpenSearchClient {
