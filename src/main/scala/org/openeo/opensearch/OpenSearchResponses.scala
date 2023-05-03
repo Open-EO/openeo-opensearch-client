@@ -304,7 +304,7 @@ object OpenSearchResponses {
             val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
             try {
-              return uri.resolve(s"${uri.getPath}/$metadatafile").toURL
+              return uri.resolve(s"${uri.toString}/$metadatafile").toURL
                 .openConnection.getInputStream
             } catch {
               case e: FileNotFoundException => return null
