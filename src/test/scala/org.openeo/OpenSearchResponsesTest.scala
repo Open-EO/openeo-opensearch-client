@@ -145,14 +145,14 @@ class OpenSearchResponsesTest {
   def creodiasOffsetNeeded(): Unit = {
     val collectionsResponse = loadJsonResource("creodiasPixelValueOffsetNeeded.json")
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
-    assertEquals(-1000, features(0).links(0).pixelValueOffset.get, 1e-6)
+    assertEquals(-1000, features(0).pixelValueOffset, 1e-6)
   }
 
   @Test
   def creodiasNoOffsetNeeded(): Unit = {
     val collectionsResponse = loadJsonResource("creodiasDifferentGeom.json")
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
-    assertTrue(features(0).links(0).pixelValueOffset.isEmpty || features(0).links(0).pixelValueOffset.get == 0)
+    assertTrue(features(0).pixelValueOffset == 0)
   }
 
   @Test

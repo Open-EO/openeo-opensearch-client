@@ -31,7 +31,7 @@ object OpenSearchResponses {
   implicit val decodeUrl: Decoder[URI] = Decoder.decodeString.map(s => URI.create(s.trim))
   implicit val decodeDate: Decoder[ZonedDateTime] = Decoder.decodeString.map(s => ZonedDateTime.parse(s.split('/')(0)))
 
-  case class Link(href: URI, title: Option[String], var pixelValueOffset:Option[Double] = Some(0))
+  case class Link(href: URI, title: Option[String])
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -44,7 +44,8 @@ object OpenSearchResponses {
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None
+                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
+                     var pixelValueOffset:Double = 0,
                      ){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
@@ -413,27 +414,19 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            val pixelValueOffset: Option[Double] = for (
-              processingBaseline <- c.downField("properties").downField("processingBaseline").as[Double].toOption
-              // 99.99 seems like a value we should ignore. Best to double check if possible
-              if processingBaseline >= 04.00 && processingBaseline != 99.99
-            ) yield {
-              println("processingBaseline: " + processingBaseline)
-              // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
-              -1000.0
-            }
+            val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
+            // 99.99 seems like a value we should ignore. Best to double check if possible
+            // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
+            val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
 
             if(id.endsWith(".SAFE")){
               val all_links = getFilePathsFromManifest(id)
-              all_links.foreach(_.pixelValueOffset = pixelValueOffset)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              all_links.foreach(_.pixelValueOffset = pixelValueOffset)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
             }else{
-              links.foreach(_.pixelValueOffset = pixelValueOffset)
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
             }
           }
         }
