@@ -259,6 +259,7 @@ object OpenSearchResponses {
 
   object CreoFeatureCollection {
 
+    private val logger = LoggerFactory.getLogger(CreoFeatureCollection.getClass)
     private val TILE_PATTERN = Pattern.compile("_T([0-9]{2}[A-Z]{3})_")
     private val s3Endpoint = System.getenv().getOrDefault("AWS_S3_ENDPOINT","")//https://s3.cloudferro.com
     private val useHTTPS = System.getenv().getOrDefault("AWS_HTTPS","YES")//https://s3.cloudferro.com
@@ -300,7 +301,18 @@ object OpenSearchResponses {
 
           //reading from /eodata is extremely slow
           if (creoClient.isDefined) {
-            return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(s"${path.toString.replace("/eodata/", "")}/${metadatafile}").build())
+            val key = s"${path.toString.replace("/eodata/", "")}/${metadatafile}"
+            try {
+              return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
+            } catch {
+              case e: Throwable =>
+                logger.error(s"Error reading from S3: " +
+                  s"endpoint: " + s3Endpoint + ", " +
+                  s"bucket: EODATA, " +
+                  s"key: ${key}"
+                )
+                throw e
+            }
           } else {
             val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
