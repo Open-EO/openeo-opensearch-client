@@ -415,8 +415,11 @@ object OpenSearchResponses {
             }
 
             val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
-            // 99.99 seems like a value we should ignore. Best to double check if possible
+            // 99.99 seems like a value we should ignore
             // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
+            if(processingBaseline == 99.99){
+              println("processingBaseline == 99.99")
+            }
             val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
 
             if(id.endsWith(".SAFE")){
