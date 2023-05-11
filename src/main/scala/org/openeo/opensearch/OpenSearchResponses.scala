@@ -61,23 +61,17 @@ object OpenSearchResponses {
 
   }
 
-  private def isDuplicate(d1: Option[ZonedDateTime], d2: Option[ZonedDateTime]): Boolean = {
-    if (d1.isDefined != d2.isDefined) return false
-    if (d1.isDefined && d2.isDefined
-      && ChronoUnit.SECONDS.between(d1.get, d2.get) > 30) return false
-    true
-  }
-
   private def isDuplicate(f1: Feature, f2: Feature): Boolean = {
     if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
-
-    if (!isDuplicate(f1.generalProperties.published, f2.generalProperties.published)) return false
 
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
     if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
-    if (f1.resolution != f2.resolution) return false
+    if (f1.resolution.isDefined && f2.resolution.isDefined
+      && f1.resolution.get != 0 && f2.resolution.get != 0) {
+      if (f1.resolution != f2.resolution) return false
+    }
 
     if (f1.geometry.isDefined && !f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
     true
