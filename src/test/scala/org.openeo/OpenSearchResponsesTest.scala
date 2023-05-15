@@ -4,7 +4,7 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
-import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACCollections, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
@@ -139,6 +139,14 @@ class OpenSearchResponsesTest {
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(3, features.length)
+  }
+
+  @Test
+  def parsecreaoPhoebus(): Unit = {
+    val collectionsResponse = loadJsonResource("creaoPhoebus.json")
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
+
+    assertEquals(1, features.length)
   }
 
   @Test

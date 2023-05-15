@@ -73,7 +73,19 @@ object OpenSearchResponses {
       if (f1.resolution != f2.resolution) return false
     }
 
-    if (f1.geometry.isDefined && !f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) return false
+    if (f1.geometry.isDefined && f2.geometry.isDefined) {
+      // keep simle check for performance reasons
+      if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) {
+        val area1 = f1.geometry.get.getArea
+        val area2 = f2.geometry.get.getArea
+        val areaIntersect = f1.geometry.get.intersection(f2.geometry.get).getArea
+        // https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
+        // The Sørensen–Dice coefficient (see below for other names) is a statistic used to gauge the similarity of two samples
+        val diceScore = 2 * areaIntersect / (area1 + area2)
+        if (diceScore < 0.99) return false // Threshold is based on gut feeling
+      }
+    }
+
     true
   }
 
