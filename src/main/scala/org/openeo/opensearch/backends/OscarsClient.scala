@@ -31,7 +31,10 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
       }
     }
 
-    getFirstProductWithSortKey("start").flatMap(s => getFirstProductWithSortKey("start,,0").map(e => (s, e)))
+    for {
+      startDate <- getFirstProductWithSortKey("start")
+      endDate <- getFirstProductWithSortKey("start,,0")
+    } yield (startDate, endDate)
   }
 
   override def getProducts(collectionId: String,
