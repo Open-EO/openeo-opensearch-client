@@ -23,6 +23,7 @@ import java.util.regex.Pattern
 import javax.net.ssl.HttpsURLConnection
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
+import scala.util.matching.Regex
 import scala.xml.{Node, XML}
 
 object OpenSearchResponses {
@@ -30,6 +31,33 @@ object OpenSearchResponses {
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
   implicit val decodeUrl: Decoder[URI] = Decoder.decodeString.map(s => URI.create(s.trim))
   implicit val decodeDate: Decoder[ZonedDateTime] = Decoder.decodeString.map(s => ZonedDateTime.parse(s.split('/')(0)))
+
+
+  /**
+   * Method to align various naming schemes used by Sentinel-2 into the same format
+   *
+   * It's quite messy.
+   *
+   * IMG_DATA_60m_Band9_Tile1_Data      2019 99.99
+   * IMG_DATA_Band_B09_60m_Tile1_Data   2021
+   * IMG_DATA_Band_60m_2_Tile1_Data     2016 T26SPG_20160119T123042_B05.jp2
+   *
+   * @param title
+   * @return
+   */
+  def sentinel2Reformat(title: String): String = {
+    val pattern99_99: Regex = """IMG_DATA_(\d{2}m)_Band(\d+)_Tile1_Data""".r
+
+
+    title match {
+      case pattern99_99(resolution, band) =>
+        return f"IMG_DATA_Band_B${band.toDouble}%02.0f_${resolution}_Tile1_Data"
+
+      case _ =>
+        title
+    }
+  }
+
 
   case class Link(href: URI, title: Option[String])
 
@@ -360,7 +388,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(title.toString))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(sentinel2Reformat(title.toString)))
         })
     }
 

@@ -4,6 +4,7 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
+import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACCollections, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
@@ -21,6 +22,12 @@ class OpenSearchResponsesTest {
 
     try jsonFile.mkString
     finally jsonFile.close()
+  }
+
+  @Test
+  def testReformat():Unit = {
+    assertEquals("IMG_DATA_Band_B09_60m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_60m_Band9_Tile1_Data"))
+    assertEquals("IMG_DATA_Band_B10_20m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_20m_Band10_Tile1_Data"))
   }
 
   @Test
