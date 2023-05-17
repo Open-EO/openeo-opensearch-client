@@ -10,7 +10,7 @@ import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.io.{FileInputStream, FileNotFoundException, InputStream}
@@ -339,6 +339,14 @@ object OpenSearchResponses {
             try {
               return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
             } catch {
+
+              case e: NoSuchKeyException =>
+                logger.error(s"Error reading from S3: " +
+                  s"endpoint: " + s3Endpoint + ", " +
+                  s"bucket: EODATA, " +
+                  s"key: ${key}"
+                )
+                return null
               case e: Throwable =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
