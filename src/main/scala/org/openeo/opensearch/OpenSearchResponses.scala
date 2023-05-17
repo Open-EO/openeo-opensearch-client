@@ -468,7 +468,7 @@ object OpenSearchResponses {
             }
             val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
 
-            if(id.endsWith(".SAFE")){
+            if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){
               val all_links = getFilePathsFromManifest(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
