@@ -47,11 +47,13 @@ object OpenSearchResponses {
    */
   def sentinel2Reformat(title: String): String = {
     val pattern99_99: Regex = """IMG_DATA_(\d{2}m)_Band(\d+)_Tile1_Data""".r
-
+    val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
     title match {
       case pattern99_99(resolution, band) =>
         return f"IMG_DATA_Band_B${band.toDouble}%02.0f_${resolution}_Tile1_Data"
+      case patternAuxData(name,resolution) =>
+        return f"IMG_DATA_Band_${name}_${resolution}m_Tile1_Data"
 
       case _ =>
         title
