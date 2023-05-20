@@ -45,13 +45,16 @@ object OpenSearchResponses {
    * @param title
    * @return
    */
-  def sentinel2Reformat(title: String): String = {
-    val pattern99_99: Regex = """IMG_DATA_(\d{2}m)_Band(\d+)_Tile1_Data""".r
+  def sentinel2Reformat(title: String, href:String): String = {
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
+    val patternHref:Regex = """.*_(B\d{2}_\d{2}m).jp2""".r
+
+    href match {
+      case patternHref(resBand) => return f"IMG_DATA_Band_${resBand}_Tile1_Data"
+    }
+
     title match {
-      case pattern99_99(resolution, band) =>
-        return f"IMG_DATA_Band_B${band.toDouble}%02.0f_${resolution}_Tile1_Data"
       case patternAuxData(name,resolution) =>
         return f"IMG_DATA_Band_${name}_${resolution}_Tile1_Data"
 
@@ -398,7 +401,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(sentinel2Reformat(title.toString)))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
         })
     }
 
