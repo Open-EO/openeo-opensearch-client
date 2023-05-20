@@ -53,7 +53,7 @@ object OpenSearchResponses {
       case pattern99_99(resolution, band) =>
         return f"IMG_DATA_Band_B${band.toDouble}%02.0f_${resolution}_Tile1_Data"
       case patternAuxData(name,resolution) =>
-        return f"IMG_DATA_Band_${name}_${resolution}m_Tile1_Data"
+        return f"IMG_DATA_Band_${name}_${resolution}_Tile1_Data"
 
       case _ =>
         title
