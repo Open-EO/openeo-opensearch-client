@@ -5,7 +5,7 @@ import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
 import org.openeo.opensearch.OpenSearchResponses
-import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACCollections, STACFeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
@@ -26,8 +26,9 @@ class OpenSearchResponsesTest {
 
   @Test
   def testReformat():Unit = {
-    assertEquals("IMG_DATA_Band_B09_60m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_60m_Band9_Tile1_Data"))
-    assertEquals("IMG_DATA_Band_B10_20m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_20m_Band10_Tile1_Data"))
+    assertEquals("IMG_DATA_Band_B8A_20m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_20m_Band9_Tile1_Data","GRANULE/L2A_T30SVH_A017537_20181031T110435/IMG_DATA/R20m/T30SVH_20181031T110201_B8A_20m.jp2"))
+    assertEquals("IMG_DATA_Band_B12_60m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_60m_Band10_Tile1_Data","GRANULE/L2A_T30SVH_A017537_20181031T110435/IMG_DATA/R60m/T30SVH_20181031T110201_B12_60m.jp2"))
+    assertEquals("IMG_DATA_Band_SCL_60m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("SCL_DATA_60m_Tile1_Data","GRANULE/L2A_T30SVH_A017537_20181031T110435/IMG_DATA/R60m/T30SVH_20181031T110201_SCL_60m.jp2"))
   }
 
   @Test

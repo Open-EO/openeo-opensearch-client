@@ -48,10 +48,11 @@ object OpenSearchResponses {
   def sentinel2Reformat(title: String, href:String): String = {
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
-    val patternHref:Regex = """.*_(B\d{2}_\d{2}m).jp2""".r
+    val patternHref:Regex = """.*_(B.._\d{2}m).jp2""".r
 
     href match {
       case patternHref(resBand) => return f"IMG_DATA_Band_${resBand}_Tile1_Data"
+      case _ => None
     }
 
     title match {
