@@ -7,7 +7,7 @@ import geotrellis.vector.{Extent, ProjectedExtent}
 
 import java.net.URL
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter.ISO_DATE_TIME
+import java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
 import scala.collection.Map
 
 /**
@@ -60,7 +60,9 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
       .param("page", page.toString)
 
     val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
-      req.param("datetime", s"${fromDate format ISO_DATE_TIME}/${toDate format ISO_DATE_TIME}")
+      // requires offsets, not time zones according to
+      // https://github.com/radiantearth/stac-api-spec/tree/main/item-search#query-parameter-table
+      req.param("datetime", s"${fromDate format ISO_OFFSET_DATE_TIME}/${toDate format ISO_OFFSET_DATE_TIME}")
     }
 
     val json = withRetries {
