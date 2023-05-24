@@ -52,6 +52,7 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
       else
         (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
 
+    // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/item-search
     val getProducts = http(s"$endpoint/search")
       .param("collections", collectionsParam)
       .param("limit", "100")
@@ -70,6 +71,7 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
+    // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/ogcapi-features
     val getCollections = http(s"$endpoint/collections")
 
     val json = withRetries {
