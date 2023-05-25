@@ -5,7 +5,7 @@ import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, ST
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 
-import java.net.URL
+import java.net.{URI, URL}
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
 import scala.collection.Map
@@ -22,7 +22,6 @@ import scala.collection.Map
  */
 class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.element84.com/v0"),
                  private val s3URLS: Boolean = true) extends OpenSearchClient {
-
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                            bbox: ProjectedExtent,
@@ -53,7 +52,7 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
         (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
 
     // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/item-search
-    val getProducts = http(s"$endpoint/search")
+    val getProducts = http(URI.create(s"$endpoint/search").normalize().toString)
       .param("collections", collectionsParam)
       .param("limit", "100")
       .param("bbox", bboxParam)
@@ -74,7 +73,7 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
     // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/ogcapi-features
-    val getCollections = http(s"$endpoint/collections")
+    val getCollections = http(URI.create(s"$endpoint/collections").normalize().toString)
 
     val json = withRetries {
       execute(getCollections)
