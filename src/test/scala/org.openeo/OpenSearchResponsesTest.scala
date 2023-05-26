@@ -228,6 +228,15 @@ class OpenSearchResponsesTest {
   }
 
   @Test
+  def testDataspaceCopernicusWithUndesiredN0500(): Unit = {
+    // https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-7.601804170004186%2C35.99874846067141%2C-7.49805848922414%2C36.10128678079564&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=S2MSI1C&startDate=2020-11-27T00%3A00%3A00Z&completionDate=2020-12-28T23%3A59%3A59.999999999Z
+    val productsResponse = loadJsonResource("dataspaceCopernicusWithUndesiredN0500.json")
+    val features = CreoFeatureCollection.parse(productsResponse).features
+    // N0500 products should be filtered out here
+    assertEquals(24, features.length)
+  }
+
+  @Test
   def parseFaultyResponseExceptionContainsStackTraceContainsUsefulInformation(): Unit = {
     val productsResponse = loadJsonResource("oscarsProductsResponse.json")
     val faultyResponse = productsResponse.replace("features", "featurez")

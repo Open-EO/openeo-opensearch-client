@@ -503,7 +503,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(features).filter(!_.id.contains("N0500")) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
