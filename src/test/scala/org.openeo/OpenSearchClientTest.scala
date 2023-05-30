@@ -63,8 +63,7 @@ class OpenSearchClientTest {
       ProjectedExtent(Extent(-3.7937789378418247, 38.486414764328515, -3.5314443712734733, 38.69684729114566), LatLng),
       Map[String, Any]("eo:cloud_cover" -> 90.0, "productType" -> "L2A"), correlationId = "hello", "S2MSI2A"
     )
-    assertEquals(2, features.length)
-    assertEquals("/eodata/Sentinel-2/MSI/L2A/2018/08/12/S2A_MSIL2A_20180812T105621_N0213_R094_T30SVH_20201026T165913.SAFE", features.head.id)
+    assertEquals(1, features.length)
   }
 
   @Test

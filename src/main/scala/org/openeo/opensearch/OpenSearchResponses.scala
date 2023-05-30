@@ -101,7 +101,6 @@ object OpenSearchResponses {
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
-    if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
     if (f1.resolution.isDefined && f2.resolution.isDefined
       && f1.resolution.get != 0 && f2.resolution.get != 0) {
       if (f1.resolution != f2.resolution) return false
@@ -503,7 +502,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features).filter(!_.id.contains("_N0500/")) else features
+            val featuresFiltered = if (dedup) dedupFeatures(features) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
