@@ -72,8 +72,9 @@ object OpenSearchResponses {
    * Properties that need some processing are better parsed in the apply functions.
    */
   case class GeneralProperties(published: Option[ZonedDateTime], orbitNumber: Option[Int],
-                               organisationName: Option[String], instrument: Option[String]) {
-    def this() = this(None, None, None, None)
+                               organisationName: Option[String], instrument: Option[String],
+                               processingBaseline: Option[Double]) {
+    def this() = this(None, None, None, None, None)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
@@ -477,9 +478,6 @@ object OpenSearchResponses {
             val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
             // 99.99 seems like a value we should ignore
             // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
-            if(processingBaseline == 99.99){
-              println("processingBaseline == 99.99")
-            }
             val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
 
             if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){

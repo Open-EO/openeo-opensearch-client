@@ -4,13 +4,17 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
-import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
+import scalaj.http.HttpRequest
 
 import java.net.URL
+import java.nio.file.{Files, Path, Paths}
+import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
+import scala.io.{Codec, Source}
 
 class OpenSearchClientTest {
 
@@ -198,5 +202,157 @@ class OpenSearchClientTest {
     assertEquals(features.size,unique.size)
   }
 
+  @Test
+  def testManifestLevelSentinel2_L1C(): Unit = {
+    val dates1C = Map(
+//      LocalDate.parse("2015-11-23") -> 2.00, // No found
+      LocalDate.parse("2015-12-15") -> 2.01,
+      LocalDate.parse("2016-05-03") -> 2.02,
+//      LocalDate.parse("2016-06-09") -> 2.03,
+      LocalDate.parse("2016-06-15") -> 2.04,
+      LocalDate.parse("2017-04-27") -> 2.05,
+      LocalDate.parse("2017-10-23") -> 2.06,
+      LocalDate.parse("2018-11-06") -> 2.07,
+      LocalDate.parse("2019-07-08") -> 2.08,
+      LocalDate.parse("2020-02-04") -> 2.09,
+      LocalDate.parse("2021-03-30") -> 3.00,
+      LocalDate.parse("2021-06-30") -> 3.01,
+      LocalDate.parse("2022-01-25") -> 4.00,
+      LocalDate.parse("2022-12-06") -> 5.09,
+    )
+    val requiredBands = Set(
+      "IMG_DATA_Band_60m_1_Tile1_Data",
+      "IMG_DATA_Band_10m_1_Tile1_Data",
+      "IMG_DATA_Band_10m_2_Tile1_Data",
+      "IMG_DATA_Band_10m_3_Tile1_Data",
+      "IMG_DATA_Band_20m_1_Tile1_Data",
+      "IMG_DATA_Band_20m_2_Tile1_Data",
+      "IMG_DATA_Band_20m_3_Tile1_Data",
+      "IMG_DATA_Band_10m_4_Tile1_Data",
+      "IMG_DATA_Band_60m_2_Tile1_Data",
+      "IMG_DATA_Band_60m_3_Tile1_Data",
+      "IMG_DATA_Band_20m_5_Tile1_Data",
+      "IMG_DATA_Band_20m_6_Tile1_Data",
+      "IMG_DATA_Band_20m_4_Tile1_Data",
+    )
+    testManifestLevelSentinel2(dates1C, "L1C", "S2MSI1C", requiredBands)
+  }
 
+  @Test
+  def testManifestLevelSentinel2_L2A(): Unit = {
+    val Level_2A = Map(
+      LocalDate.parse("2018-03-26") -> 2.07,
+      LocalDate.parse("2018-05-23") -> 2.08,
+      LocalDate.parse("2018-10-08") -> 2.09,
+      LocalDate.parse("2018-11-06") -> 2.10,
+      LocalDate.parse("2018-11-21") -> 2.11,
+      LocalDate.parse("2019-05-06") -> 2.12,
+      LocalDate.parse("2019-07-08") -> 2.13,
+      LocalDate.parse("2020-02-04") -> 2.14,
+      LocalDate.parse("2021-03-30") -> 3.00,
+      LocalDate.parse("2021-06-30") -> 3.01,
+      LocalDate.parse("2022-01-25") -> 4.00,
+      LocalDate.parse("2022-12-06") -> 5.09,
+    )
+    val requiredBands = Set(
+      "IMG_DATA_Band_AOT_20m_Tile1_Data",
+      "IMG_DATA_Band_B01_60m_Tile1_Data",
+      "IMG_DATA_Band_B02_10m_Tile1_Data",
+      "IMG_DATA_Band_B03_10m_Tile1_Data",
+      "IMG_DATA_Band_B04_10m_Tile1_Data",
+      "IMG_DATA_Band_B05_20m_Tile1_Data",
+      "IMG_DATA_Band_B06_20m_Tile1_Data",
+      "IMG_DATA_Band_B07_20m_Tile1_Data",
+      "IMG_DATA_Band_B08_10m_Tile1_Data",
+      "IMG_DATA_Band_B09_60m_Tile1_Data",
+      "IMG_DATA_Band_B11_20m_Tile1_Data",
+      "IMG_DATA_Band_B12_20m_Tile1_Data",
+      "IMG_DATA_Band_B8A_20m_Tile1_Data",
+      "IMG_DATA_Band_SCL_20m_Tile1_Data",
+      "IMG_DATA_Band_TCI_10m_Tile1_Data",
+      "IMG_DATA_Band_WVP_10m_Tile1_Data",
+    )
+    testManifestLevelSentinel2(Level_2A, "L2A", "S2MSI2A", requiredBands)
+  }
+
+  def testManifestLevelSentinel2(datesToBaselineMap: Map[LocalDate, Double], productType: String, processingLevel: String, requiredBands: Set[String]): Unit = {
+    /*
+    // Run this snippet in the JS console to extract boilerplate code from the page
+    // https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-2-msi/processing-baseline
+    const tables = document.querySelectorAll(".sentinel-table")
+    let str = ""
+    for(t of tables){
+        const name = t.querySelector("caption").innerText.replaceAll("-", "_").replaceAll(" ", "_")
+        str += `val ${name} = Map(\n`
+        const rows = t.querySelectorAll("tr:not(.tableheader)")
+        for(row of rows){
+          const tds = row.querySelectorAll("td")
+            const processingVersion = parseFloat(tds[0].innerText)
+            let date = new Date(tds[1].innerText)
+            date=new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+            date = date.toISOString().split("T")[0]
+            str += `    LocalDate.parse("${date}") -> ${processingVersion.toFixed(2)},\n`
+        }
+        str += `)\n`
+    }
+    console.log(str)
+     */
+
+    val openSearchCached = new CreodiasClient() {
+      override def execute(request: HttpRequest): String = {
+        val fullUrl = request.urlBuilder(request)
+        val idx = fullUrl.indexOf("//")
+        var filePath = fullUrl.substring(idx + 2)
+        val lastSlash = filePath.lastIndexOf("/")
+        var (basePath, filename) = filePath.splitAt(lastSlash + 1)
+        if (filename.length > 255) {
+          filename = (filename.hashCode >>> 1).toString + ".json" // TODO, parse extension
+        }
+        filePath = basePath + filename
+
+        val cachePath = "tmp/" // TODO: move to resources
+        val path = Paths.get(cachePath + filePath)
+        if (!Files.exists(path)) {
+          Files.createDirectories(Paths.get(cachePath + basePath))
+          println("Need to download first: " + path)
+          Files.write(path, super.execute(request).getBytes)
+        } else {
+          println("Using download mock: " + path)
+        }
+        val jsonFile = Source.fromFile(path.toString)(Codec.UTF8)
+
+        try jsonFile.mkString
+        finally jsonFile.close()
+      }
+
+      override def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection =
+        super.getProductsFromPage(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel, page)
+    }
+
+    val extentTAP4326 = Extent(5.07, 51.215, 5.08, 51.22)
+    var donePbs = Set[Double]()
+    var requiredProcesingBaselines = datesToBaselineMap.values.toSet
+//    requiredProcesingBaselines += 99.99 // This value is not documented, but best to test it
+    for {
+      (date, _) <- datesToBaselineMap
+      features = openSearchCached.getProducts(
+        collectionId = "Sentinel2",
+        Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(40).atStartOfDay(UTC))), // Big time frame to avoid product gap in 2016
+        ProjectedExtent(extentTAP4326, LatLng),
+        Map("productType" -> productType),
+        correlationId = "hello",
+        processingLevel,
+      )
+      pb <- requiredProcesingBaselines.diff(donePbs)
+      feature <- features.find(_.generalProperties.processingBaseline.get == pb)
+    } {
+      // Generally, each date a product baseline is released, there will a be a product with that baseline in the first 40 days.
+      // But we interpret is flexible, because it might change. And this way, we can also test the undocumented 99.99
+      donePbs += pb
+      val foundBands = feature.links.map(_.title.get).toSet
+      val intersect = requiredBands.intersect(foundBands)
+      assertEquals(requiredBands, intersect)
+    }
+    assertEquals(requiredProcesingBaselines, donePbs.intersect(requiredProcesingBaselines))
+  }
 }
