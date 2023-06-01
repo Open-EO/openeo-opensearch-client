@@ -2,21 +2,113 @@ package org.openeo
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.junit.Assert._
-import org.junit.{Ignore, Test}
-import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
+import org.junit.Ignore
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments.arguments
+import org.junit.jupiter.params.provider.{Arguments, MethodSource}
+import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
-import scalaj.http.HttpRequest
 
-import java.net.URL
-import java.nio.file.{Files, Path, Paths}
+import java.io.{File, FileInputStream, InputStream}
+import java.net.{URL, URLStreamHandler, URLStreamHandlerFactory}
+import java.nio.file.{Files, Paths}
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
-import scala.io.{Codec, Source}
+
+object OpenSearchClientTest {
+  def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
+//    arguments(LocalDate.parse("2015-11-23"), new java.lang.Double(2.00)), // No products with this processingBaseline found
+    arguments(LocalDate.parse("2015-12-15"), new java.lang.Double(2.01)),
+    arguments(LocalDate.parse("2016-05-03"), new java.lang.Double(2.02)),
+//    arguments(LocalDate.parse("2016-06-09"), new java.lang.Double(2.03)), // No products with this processingBaseline found
+    arguments(LocalDate.parse("2016-06-15"), new java.lang.Double(2.04)),
+    arguments(LocalDate.parse("2017-04-27"), new java.lang.Double(2.05)),
+    arguments(LocalDate.parse("2017-10-23"), new java.lang.Double(2.06)),
+    arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.07)),
+    arguments(LocalDate.parse("2019-07-08"), new java.lang.Double(2.08)),
+    arguments(LocalDate.parse("2020-02-04"), new java.lang.Double(2.09)),
+    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
+    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
+    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
+    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
+    // No products with this processingBaseline 99.99 found for L2A
+  ))
+
+  def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
+    arguments(LocalDate.parse("2018-03-26"), new java.lang.Double(2.07)),
+    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)),
+    arguments(LocalDate.parse("2018-10-08"), new java.lang.Double(2.09)),
+    arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.10)),
+    arguments(LocalDate.parse("2018-11-21"), new java.lang.Double(2.11)),
+    arguments(LocalDate.parse("2019-05-06"), new java.lang.Double(2.12)),
+    arguments(LocalDate.parse("2019-07-08"), new java.lang.Double(2.13)),
+    arguments(LocalDate.parse("2020-02-04"), new java.lang.Double(2.14)),
+    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
+    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
+    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
+    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
+    arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
+  ))
+
+  class HttpsCache extends sun.net.www.protocol.https.Handler {
+    var enabled = false
+
+    def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
+
+    override def openConnection(url: URL): java.net.URLConnection = new java.net.HttpURLConnection(url) {
+      override def getInputStream: InputStream = {
+        if (!enabled) {
+          openConnectionSuper(url).getInputStream
+        } else {
+          val fullUrl = this.url.toString
+          val idx = fullUrl.indexOf("//")
+          var filePath = fullUrl.substring(idx + 2)
+          if (filePath.length > 255) {
+            // An individual name should be max 255 characters long. Lazy implementation caps whole file path:
+            val hash = "___" + (filePath.hashCode >>> 1).toString // TODO, parse extension?
+            filePath = filePath.substring(0, 255 - hash.length) + hash
+          }
+          val lastSlash = filePath.lastIndexOf("/")
+          val (basePath, filename) = filePath.splitAt(lastSlash + 1)
+          filePath = basePath + filename
+
+          // val cachePath = "tmp/" // Use tmp to re-download files
+          val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
+          val path = Paths.get(cachePath, filePath)
+          if (!Files.exists(path)) {
+            Files.createDirectories(Paths.get(cachePath, basePath))
+            println("Caching request: " + path)
+            val stream = openConnectionSuper(url).getInputStream
+            Files.write(path, scala.io.Source.fromInputStream(stream).mkString.getBytes)
+          } else {
+            println("Using cached request: " + path)
+          }
+          new FileInputStream(new File(path.toString))
+        }
+      }
+
+      override def connect(): Unit = {}
+
+      override def disconnect(): Unit = ???
+
+      override def usingProxy(): Boolean = ???
+    }
+  }
+
+  val httpsCache = new HttpsCache()
+  // This method can be called at most once in a given Java Virtual Machine:
+  URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
+    override def createURLStreamHandler(protocol: String): URLStreamHandler =
+      if (protocol == "http" || protocol == "https") httpsCache else null
+  })
+}
 
 class OpenSearchClientTest {
+  import OpenSearchClientTest._
 
   @Test
   def testOscarsGetProducts(): Unit = {
@@ -202,80 +294,74 @@ class OpenSearchClientTest {
     assertEquals(features.size,unique.size)
   }
 
-  @Test
-  def testManifestLevelSentinel2_L1C(): Unit = {
-    val dates1C = Map(
-//      LocalDate.parse("2015-11-23") -> 2.00, // No found
-      LocalDate.parse("2015-12-15") -> 2.01,
-      LocalDate.parse("2016-05-03") -> 2.02,
-//      LocalDate.parse("2016-06-09") -> 2.03,
-      LocalDate.parse("2016-06-15") -> 2.04,
-      LocalDate.parse("2017-04-27") -> 2.05,
-      LocalDate.parse("2017-10-23") -> 2.06,
-      LocalDate.parse("2018-11-06") -> 2.07,
-      LocalDate.parse("2019-07-08") -> 2.08,
-      LocalDate.parse("2020-02-04") -> 2.09,
-      LocalDate.parse("2021-03-30") -> 3.00,
-      LocalDate.parse("2021-06-30") -> 3.01,
-      LocalDate.parse("2022-01-25") -> 4.00,
-      LocalDate.parse("2022-12-06") -> 5.09,
-    )
-    val requiredBands = Set(
-      "IMG_DATA_Band_60m_1_Tile1_Data",
-      "IMG_DATA_Band_10m_1_Tile1_Data",
-      "IMG_DATA_Band_10m_2_Tile1_Data",
-      "IMG_DATA_Band_10m_3_Tile1_Data",
-      "IMG_DATA_Band_20m_1_Tile1_Data",
-      "IMG_DATA_Band_20m_2_Tile1_Data",
-      "IMG_DATA_Band_20m_3_Tile1_Data",
-      "IMG_DATA_Band_10m_4_Tile1_Data",
-      "IMG_DATA_Band_60m_2_Tile1_Data",
-      "IMG_DATA_Band_60m_3_Tile1_Data",
-      "IMG_DATA_Band_20m_5_Tile1_Data",
-      "IMG_DATA_Band_20m_6_Tile1_Data",
-      "IMG_DATA_Band_20m_4_Tile1_Data",
-    )
-    testManifestLevelSentinel2(dates1C, "L1C", "S2MSI1C", requiredBands)
+  @ParameterizedTest
+  @MethodSource(Array("level1CParams"))
+  def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
+    // Cache reduces test time from 100sec to 1sec.
+    val httpsCacheEnabledOriginalValue = httpsCache.enabled
+    httpsCache.enabled = true
+    try {
+      // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
+      val requiredBands = Set(
+        "IMG_DATA_Band_60m_1_Tile1_Data",
+        "IMG_DATA_Band_10m_1_Tile1_Data",
+        "IMG_DATA_Band_10m_2_Tile1_Data",
+        "IMG_DATA_Band_10m_3_Tile1_Data",
+        "IMG_DATA_Band_20m_1_Tile1_Data",
+        "IMG_DATA_Band_20m_2_Tile1_Data",
+        "IMG_DATA_Band_20m_3_Tile1_Data",
+        "IMG_DATA_Band_10m_4_Tile1_Data",
+        "IMG_DATA_Band_20m_4_Tile1_Data",
+        "IMG_DATA_Band_60m_2_Tile1_Data",
+        "IMG_DATA_Band_60m_3_Tile1_Data",
+        "IMG_DATA_Band_20m_5_Tile1_Data",
+        "IMG_DATA_Band_20m_6_Tile1_Data",
+        "IMG_DATA_Band_TCI_Tile1_Data",
+        "S2_Level-1C_Tile1_Metadata",
+        // "S2_Level-1C_Tile1_Metadata##0",
+        // "S2_Level-1C_Tile1_Metadata##1",
+        // "S2_Level-1C_Tile1_Metadata##2",
+        // "S2_Level-1C_Tile1_Metadata##3",
+      )
+      testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
+    } finally {
+      httpsCache.enabled = httpsCacheEnabledOriginalValue
+    }
   }
 
-  @Test
-  def testManifestLevelSentinel2_L2A(): Unit = {
-    val Level_2A = Map(
-      LocalDate.parse("2018-03-26") -> 2.07,
-      LocalDate.parse("2018-05-23") -> 2.08,
-      LocalDate.parse("2018-10-08") -> 2.09,
-      LocalDate.parse("2018-11-06") -> 2.10,
-      LocalDate.parse("2018-11-21") -> 2.11,
-      LocalDate.parse("2019-05-06") -> 2.12,
-      LocalDate.parse("2019-07-08") -> 2.13,
-      LocalDate.parse("2020-02-04") -> 2.14,
-      LocalDate.parse("2021-03-30") -> 3.00,
-      LocalDate.parse("2021-06-30") -> 3.01,
-      LocalDate.parse("2022-01-25") -> 4.00,
-      LocalDate.parse("2022-12-06") -> 5.09,
-    )
-    val requiredBands = Set(
-      "IMG_DATA_Band_AOT_20m_Tile1_Data",
-      "IMG_DATA_Band_B01_60m_Tile1_Data",
-      "IMG_DATA_Band_B02_10m_Tile1_Data",
-      "IMG_DATA_Band_B03_10m_Tile1_Data",
-      "IMG_DATA_Band_B04_10m_Tile1_Data",
-      "IMG_DATA_Band_B05_20m_Tile1_Data",
-      "IMG_DATA_Band_B06_20m_Tile1_Data",
-      "IMG_DATA_Band_B07_20m_Tile1_Data",
-      "IMG_DATA_Band_B08_10m_Tile1_Data",
-      "IMG_DATA_Band_B09_60m_Tile1_Data",
-      "IMG_DATA_Band_B11_20m_Tile1_Data",
-      "IMG_DATA_Band_B12_20m_Tile1_Data",
-      "IMG_DATA_Band_B8A_20m_Tile1_Data",
-      "IMG_DATA_Band_SCL_20m_Tile1_Data",
-      "IMG_DATA_Band_TCI_10m_Tile1_Data",
-      "IMG_DATA_Band_WVP_10m_Tile1_Data",
-    )
-    testManifestLevelSentinel2(Level_2A, "L2A", "S2MSI2A", requiredBands)
+  @ParameterizedTest
+  @MethodSource(Array("level2AParams"))
+  def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
+    // Cache reduces test time from 3min to 2sec.
+    val httpsCacheEnabledOriginalValue = httpsCache.enabled
+    httpsCache.enabled = true
+    try {
+      // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
+      val requiredBands = Set(
+        "IMG_DATA_Band_B01_60m_Tile1_Data",
+        "IMG_DATA_Band_B02_10m_Tile1_Data",
+        "IMG_DATA_Band_B03_10m_Tile1_Data",
+        "IMG_DATA_Band_B04_10m_Tile1_Data",
+        "IMG_DATA_Band_B05_20m_Tile1_Data",
+        "IMG_DATA_Band_B06_20m_Tile1_Data",
+        "IMG_DATA_Band_B07_20m_Tile1_Data",
+        "IMG_DATA_Band_B08_10m_Tile1_Data",
+        "IMG_DATA_Band_B8A_20m_Tile1_Data",
+        "IMG_DATA_Band_B09_60m_Tile1_Data",
+        "IMG_DATA_Band_B11_20m_Tile1_Data",
+        "IMG_DATA_Band_B12_20m_Tile1_Data",
+        "IMG_DATA_Band_TCI_10m_Tile1_Data",
+        "IMG_DATA_Band_WVP_10m_Tile1_Data",
+        "IMG_DATA_Band_AOT_20m_Tile1_Data",
+        "IMG_DATA_Band_SCL_20m_Tile1_Data",
+      )
+      testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
+    } finally {
+      httpsCache.enabled = httpsCacheEnabledOriginalValue
+    }
   }
 
-  def testManifestLevelSentinel2(datesToBaselineMap: Map[LocalDate, Double], productType: String, processingLevel: String, requiredBands: Set[String]): Unit = {
+  def testManifestLevelSentinel2(date: LocalDate, processingBaseline: Double, productType: String, processingLevel: String, requiredBands: Set[String]): Unit = {
     /*
     // Run this snippet in the JS console to extract boilerplate code from the page
     // https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-2-msi/processing-baseline
@@ -283,7 +369,8 @@ class OpenSearchClientTest {
     let str = ""
     for(t of tables){
         const name = t.querySelector("caption").innerText.replaceAll("-", "_").replaceAll(" ", "_")
-        str += `val ${name} = Map(\n`
+        //str += `val ${name} = Map(\n`
+        str += `def ${name}: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(\n`
         const rows = t.querySelectorAll("tr:not(.tableheader)")
         for(row of rows){
           const tds = row.querySelectorAll("td")
@@ -291,68 +378,31 @@ class OpenSearchClientTest {
             let date = new Date(tds[1].innerText)
             date=new Date(date.getTime() - date.getTimezoneOffset() * 60000)
             date = date.toISOString().split("T")[0]
-            str += `    LocalDate.parse("${date}") -> ${processingVersion.toFixed(2)},\n`
+            //str += `    LocalDate.parse("${date}") -> ${processingVersion.toFixed(2)},\n`
+            str += `    arguments(LocalDate.parse("${date}"), new java.lang.Double(${processingVersion.toFixed(2)})),\n`
+
         }
-        str += `)\n`
+        str += `))\n`
     }
     console.log(str)
      */
 
-    val openSearchCached = new CreodiasClient() {
-      override def execute(request: HttpRequest): String = {
-        val fullUrl = request.urlBuilder(request)
-        val idx = fullUrl.indexOf("//")
-        var filePath = fullUrl.substring(idx + 2)
-        val lastSlash = filePath.lastIndexOf("/")
-        var (basePath, filename) = filePath.splitAt(lastSlash + 1)
-        if (filename.length > 255) {
-          filename = (filename.hashCode >>> 1).toString + ".json" // TODO, parse extension
-        }
-        filePath = basePath + filename
-
-        val cachePath = "tmp/" // TODO: move to resources
-        val path = Paths.get(cachePath + filePath)
-        if (!Files.exists(path)) {
-          Files.createDirectories(Paths.get(cachePath + basePath))
-          println("Need to download first: " + path)
-          Files.write(path, super.execute(request).getBytes)
-        } else {
-          println("Using download mock: " + path)
-        }
-        val jsonFile = Source.fromFile(path.toString)(Codec.UTF8)
-
-        try jsonFile.mkString
-        finally jsonFile.close()
-      }
-
-      override def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection =
-        super.getProductsFromPage(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel, page)
-    }
-
     val extentTAP4326 = Extent(5.07, 51.215, 5.08, 51.22)
-    var donePbs = Set[Double]()
-    var requiredProcesingBaselines = datesToBaselineMap.values.toSet
-//    requiredProcesingBaselines += 99.99 // This value is not documented, but best to test it
-    for {
-      (date, _) <- datesToBaselineMap
-      features = openSearchCached.getProducts(
-        collectionId = "Sentinel2",
-        Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(40).atStartOfDay(UTC))), // Big time frame to avoid product gap in 2016
-        ProjectedExtent(extentTAP4326, LatLng),
-        Map("productType" -> productType),
-        correlationId = "hello",
-        processingLevel,
-      )
-      pb <- requiredProcesingBaselines.diff(donePbs)
-      feature <- features.find(_.generalProperties.processingBaseline.get == pb)
-    } {
-      // Generally, each date a product baseline is released, there will a be a product with that baseline in the first 40 days.
-      // But we interpret is flexible, because it might change. And this way, we can also test the undocumented 99.99
-      donePbs += pb
-      val foundBands = feature.links.map(_.title.get).toSet
-      val intersect = requiredBands.intersect(foundBands)
-      assertEquals(requiredBands, intersect)
-    }
-    assertEquals(requiredProcesingBaselines, donePbs.intersect(requiredProcesingBaselines))
+    val features = new CreodiasClient().getProducts(
+      collectionId = "Sentinel2",
+      Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(40).atStartOfDay(UTC))), // Big time frame to avoid product gap in 2016
+      ProjectedExtent(extentTAP4326, LatLng),
+      Map(
+        "productType" -> productType,
+        // Could filter here on processingBaseline, but not needed
+      ),
+      correlationId = "hello",
+      processingLevel,
+    )
+    val feature = features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
+    // Generally, each date a product baseline is released, there will a be a product with that baseline in the first 40 days.
+    val foundBands = feature.links.map(_.title.get).toSet
+    val intersect = requiredBands.intersect(foundBands)
+    assertEquals(requiredBands, intersect)
   }
 }
