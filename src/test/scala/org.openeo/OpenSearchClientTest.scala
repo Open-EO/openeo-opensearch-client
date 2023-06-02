@@ -8,16 +8,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
-import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
+import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
-import java.io.{File, FileInputStream, InputStream}
-import java.net.{URL, URLStreamHandler, URLStreamHandlerFactory}
-import java.nio.file.{Files, Paths}
+import java.net.URL
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
+import scala.io.Source
+import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -55,12 +56,17 @@ object OpenSearchClientTest {
   ))
 
   class HttpsCache extends sun.net.www.protocol.https.Handler {
+
+    import java.io.{File, FileInputStream, InputStream}
+    import java.net.URL
+    import java.nio.file.{Files, Paths}
+
     var enabled = false
 
     def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
 
     override def openConnection(url: URL): java.net.URLConnection = new java.net.HttpURLConnection(url) {
-      override def getInputStream: InputStream = {
+      private lazy val inputStream = {
         if (!enabled) {
           openConnectionSuper(url).getInputStream
         } else {
@@ -76,20 +82,25 @@ object OpenSearchClientTest {
           val (basePath, filename) = filePath.splitAt(lastSlash + 1)
           filePath = basePath + filename
 
-          // val cachePath = "tmp/" // Use tmp to re-download files
-          val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
+           val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
+//          val cachePath = "src/test/resources/org/openeo/httpsCache"
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
+            println("Caching request url: " + url)
             Files.createDirectories(Paths.get(cachePath, basePath))
-            println("Caching request: " + path)
             val stream = openConnectionSuper(url).getInputStream
-            Files.write(path, scala.io.Source.fromInputStream(stream).mkString.getBytes)
+            val tmpBeforeAtomicMove = Paths.get(cachePath, java.util.UUID.randomUUID().toString)
+            // TODO: Test for binary images.
+            Files.write(tmpBeforeAtomicMove, scala.io.Source.fromInputStream(stream).mkString.getBytes)
+            Files.move(tmpBeforeAtomicMove, path)
           } else {
-            println("Using cached request: " + path)
+            println("Using cached request: " + path.toUri)
           }
           new FileInputStream(new File(path.toString))
         }
       }
+
+      override def getInputStream: InputStream = inputStream
 
       override def connect(): Unit = {}
 
@@ -101,8 +112,8 @@ object OpenSearchClientTest {
 
   val httpsCache = new HttpsCache()
   // This method can be called at most once in a given Java Virtual Machine:
-  URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
-    override def createURLStreamHandler(protocol: String): URLStreamHandler =
+  java.net.URL.setURLStreamHandlerFactory(new java.net.URLStreamHandlerFactory() {
+    override def createURLStreamHandler(protocol: String): java.net.URLStreamHandler =
       if (protocol == "http" || protocol == "https") httpsCache else null
   })
 }
@@ -159,8 +170,8 @@ class OpenSearchClientTest {
       ProjectedExtent(Extent(-3.7937789378418247, 38.486414764328515, -3.5314443712734733, 38.69684729114566), LatLng),
       Map[String, Any]("eo:cloud_cover" -> 90.0, "productType" -> "L2A"), correlationId = "hello", "S2MSI2A"
     )
-    assertEquals(2, features.length)
-    assertEquals("/eodata/Sentinel-2/MSI/L2A/2018/08/12/S2A_MSIL2A_20180812T105621_N0213_R094_T30SVH_20201026T165913.SAFE", features.head.id)
+    assertEquals(1, features.length)
+    assertEquals("/eodata/Sentinel-2/MSI/L2A/2018/08/12/S2A_MSIL2A_20180812T105621_N9999_R094_T30SVH_20220926T193221", features.head.id)
   }
 
   @Test
@@ -297,7 +308,7 @@ class OpenSearchClientTest {
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
-    // Cache reduces test time from 100sec to 1sec.
+    // Cache reduces test time from 5min to 1sec.
     val httpsCacheEnabledOriginalValue = httpsCache.enabled
     httpsCache.enabled = true
     try {
@@ -318,12 +329,27 @@ class OpenSearchClientTest {
         "IMG_DATA_Band_20m_6_Tile1_Data",
         "IMG_DATA_Band_TCI_Tile1_Data",
         "S2_Level-1C_Tile1_Metadata",
+        // Emile: Specific bands don't seem fully supported yet
         // "S2_Level-1C_Tile1_Metadata##0",
         // "S2_Level-1C_Tile1_Metadata##1",
         // "S2_Level-1C_Tile1_Metadata##2",
         // "S2_Level-1C_Tile1_Metadata##3",
       )
-      testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
+      val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
+
+      // Testing special link to bands that contain suna and view angle information:
+      val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
+      if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
+        println("Ignorind old product")
+      } else {
+        val str = {
+          val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
+          try in.mkString.trim
+          finally in.close()
+        }
+        assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+        XML.loadString(str) // Test if XML is parsable
+      }
     } finally {
       httpsCache.enabled = httpsCacheEnabledOriginalValue
     }
@@ -354,14 +380,34 @@ class OpenSearchClientTest {
         "IMG_DATA_Band_WVP_10m_Tile1_Data",
         "IMG_DATA_Band_AOT_20m_Tile1_Data",
         "IMG_DATA_Band_SCL_20m_Tile1_Data",
+        "S2_Level-2A_Product_Metadata",
       )
-      testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
+      val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
+
+      // Testing special link to bands that contain suna and view angle information:
+      val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
+      if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
+        println("Ignoring old product")
+      } else {
+        val str = {
+          val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
+          try in.mkString.trim
+          finally in.close()
+        }
+        assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+        XML.loadString(str) // Test if XML is parsable
+      }
     } finally {
       httpsCache.enabled = httpsCacheEnabledOriginalValue
     }
   }
 
-  def testManifestLevelSentinel2(date: LocalDate, processingBaseline: Double, productType: String, processingLevel: String, requiredBands: Set[String]): Unit = {
+  private def testManifestLevelSentinel2(date: LocalDate,
+                                         processingBaseline: Double,
+                                         productType: String,
+                                         processingLevel: String,
+                                         requiredBands: Set[String]
+                                        ) = {
     /*
     // Run this snippet in the JS console to extract boilerplate code from the page
     // https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-2-msi/processing-baseline
@@ -390,19 +436,24 @@ class OpenSearchClientTest {
     val extentTAP4326 = Extent(5.07, 51.215, 5.08, 51.22)
     val features = new CreodiasClient().getProducts(
       collectionId = "Sentinel2",
-      Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(40).atStartOfDay(UTC))), // Big time frame to avoid product gap in 2016
+      Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(15).atStartOfDay(UTC))),
       ProjectedExtent(extentTAP4326, LatLng),
       Map(
         "productType" -> productType,
-        // Could filter here on processingBaseline, but not needed
+        "processingBaseline" -> processingBaseline, // avoid old products getting dedupped away
       ),
       correlationId = "hello",
       processingLevel,
     )
-    val feature = features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
-    // Generally, each date a product baseline is released, there will a be a product with that baseline in the first 40 days.
-    val foundBands = feature.links.map(_.title.get).toSet
-    val intersect = requiredBands.intersect(foundBands)
-    assertEquals(requiredBands, intersect)
+
+    for (feature <- features) {
+      // Checking bands for all features:
+      val foundBands = feature.links.map(_.title.get).toSet
+      val intersect = requiredBands.intersect(foundBands)
+      assertEquals(requiredBands, intersect)
+    }
+    // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
+    // This is the product we are actually interested in.
+    features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
   }
 }

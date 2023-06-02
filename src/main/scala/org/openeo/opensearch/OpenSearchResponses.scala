@@ -46,6 +46,10 @@ object OpenSearchResponses {
    * @return
    */
   def sentinel2Reformat(title: String, href:String): String = {
+    if (title == "S2_Level-2A_Tile1_Metadata" && href.contains("L2A")) {
+      // logic for processingBaseline 2.07 and 99.99
+      return "S2_Level-2A_Product_Metadata"
+    }
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
     val patternHref:Regex = """.*_(B.._\d{2}m).jp2""".r
@@ -102,7 +106,6 @@ object OpenSearchResponses {
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
-    if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
     if (f1.resolution.isDefined && f2.resolution.isDefined
       && f1.resolution.get != 0 && f2.resolution.get != 0) {
       if (f1.resolution != f2.resolution) return false
@@ -326,13 +329,13 @@ object OpenSearchResponses {
       "TRUE".equals(getenv("AWS_DIRECT"))
     }
 
-    def loadMetadata(path:String, metadatafile:String):InputStream = {
+    def loadMetadata(path:String):InputStream = {
       var gdalPrefix = ""
       val inputStream = if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
 
         val uri = new URI(path)
-        return uri.resolve(s"${uri.getPath}/${metadatafile}").toURL
+        return uri.resolve(uri.getPath).toURL
           .openConnection.asInstanceOf[HttpsURLConnection]
           .getInputStream
       } else {
@@ -342,7 +345,7 @@ object OpenSearchResponses {
 
           //reading from /eodata is extremely slow
           if (creoClient.isDefined) {
-            val key = s"${path.toString.replace("/eodata/", "")}/${metadatafile}"
+            val key = path.replace("/eodata/", "")
             try {
               return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
             } catch {
@@ -366,7 +369,7 @@ object OpenSearchResponses {
             val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
             try {
-              return uri.resolve(s"${uri.toString}/$metadatafile").toURL
+              return uri.resolve(uri.toString).toURL
                 .openConnection.getInputStream
             } catch {
               case e: FileNotFoundException => return null
@@ -374,7 +377,7 @@ object OpenSearchResponses {
           }
 
         } else {
-          return new FileInputStream(Paths.get(path, metadatafile).toFile)
+          return new FileInputStream(Paths.get(path).toFile)
         }
       }
       return inputStream
@@ -393,7 +396,7 @@ object OpenSearchResponses {
     private def getFilePathsFromManifest(path: String): Seq[Link] = {
 
       val gdalPrefix: String = getGDALPrefix(path)
-      val inputStream: InputStream = loadMetadata(path,"manifest.safe")
+      val inputStream: InputStream = loadMetadata(Paths.get(path, "manifest.safe").toString)
       if(inputStream == null) {
         return Seq.empty[Link]
       }
@@ -403,7 +406,9 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
+          var filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+//          filePath = filePath.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
+          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
         })
     }
 
@@ -414,7 +419,7 @@ object OpenSearchResponses {
      */
     private def getDEMPathFromInspire(path: String): Seq[Link] = {
       val gdalPrefix: String = getGDALPrefix(path)
-      val inputStream: InputStream = loadMetadata(path, "INSPIRE.xml")
+      val inputStream: InputStream = loadMetadata(Paths.get(path, "INSPIRE.xml").toString)
       if(inputStream == null) {
         return Seq.empty[Link]
       }
