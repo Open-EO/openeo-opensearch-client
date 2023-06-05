@@ -98,7 +98,7 @@ object OpenSearchResponses {
   private def isDuplicate(f1: Feature, f2: Feature): Boolean = {
     if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
 
-    // If orbitNumber or organisationName is None it works out too
+    // If orbitNumber is None on both Features, it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
     if (f1.resolution.isDefined && f2.resolution.isDefined
