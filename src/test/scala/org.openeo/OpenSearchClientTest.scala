@@ -54,68 +54,6 @@ object OpenSearchClientTest {
     arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
     arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
   ))
-
-  class HttpsCache extends sun.net.www.protocol.https.Handler {
-
-    import java.io.{File, FileInputStream, InputStream}
-    import java.net.URL
-    import java.nio.file.{Files, Paths}
-
-    var enabled = false
-
-    def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
-
-    override def openConnection(url: URL): java.net.URLConnection = new java.net.HttpURLConnection(url) {
-      private lazy val inputStream = {
-        if (!enabled) {
-          openConnectionSuper(url).getInputStream
-        } else {
-          val fullUrl = this.url.toString
-          val idx = fullUrl.indexOf("//")
-          var filePath = fullUrl.substring(idx + 2)
-          if (filePath.length > 255) {
-            // An individual name should be max 255 characters long. Lazy implementation caps whole file path:
-            val hash = "___" + (filePath.hashCode >>> 1).toString // TODO, parse extension?
-            filePath = filePath.substring(0, 255 - hash.length) + hash
-          }
-          val lastSlash = filePath.lastIndexOf("/")
-          val (basePath, filename) = filePath.splitAt(lastSlash + 1)
-          filePath = basePath + filename
-
-           val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
-//          val cachePath = "src/test/resources/org/openeo/httpsCache"
-          val path = Paths.get(cachePath, filePath)
-          if (!Files.exists(path)) {
-            println("Caching request url: " + url)
-            Files.createDirectories(Paths.get(cachePath, basePath))
-            val stream = openConnectionSuper(url).getInputStream
-            val tmpBeforeAtomicMove = Paths.get(cachePath, java.util.UUID.randomUUID().toString)
-            // TODO: Test for binary images.
-            Files.write(tmpBeforeAtomicMove, scala.io.Source.fromInputStream(stream).mkString.getBytes)
-            Files.move(tmpBeforeAtomicMove, path)
-          } else {
-            println("Using cached request: " + path.toUri)
-          }
-          new FileInputStream(new File(path.toString))
-        }
-      }
-
-      override def getInputStream: InputStream = inputStream
-
-      override def connect(): Unit = {}
-
-      override def disconnect(): Unit = ???
-
-      override def usingProxy(): Boolean = ???
-    }
-  }
-
-  val httpsCache = new HttpsCache()
-  // This method can be called at most once in a given Java Virtual Machine:
-  java.net.URL.setURLStreamHandlerFactory(new java.net.URLStreamHandlerFactory() {
-    override def createURLStreamHandler(protocol: String): java.net.URLStreamHandler =
-      if (protocol == "http" || protocol == "https") httpsCache else null
-  })
 }
 
 class OpenSearchClientTest {
@@ -309,8 +247,8 @@ class OpenSearchClientTest {
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 5min to 1sec.
-    val httpsCacheEnabledOriginalValue = httpsCache.enabled
-    httpsCache.enabled = true
+    val httpsCacheEnabledOriginalValue = HttpCache.enabled
+    HttpCache.enabled = true
     try {
       // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
       val requiredBands = Set(
@@ -351,7 +289,7 @@ class OpenSearchClientTest {
         XML.loadString(str) // Test if XML is parsable
       }
     } finally {
-      httpsCache.enabled = httpsCacheEnabledOriginalValue
+      HttpCache.enabled = httpsCacheEnabledOriginalValue
     }
   }
 
@@ -359,8 +297,8 @@ class OpenSearchClientTest {
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 3min to 2sec.
-    val httpsCacheEnabledOriginalValue = httpsCache.enabled
-    httpsCache.enabled = true
+    val httpsCacheEnabledOriginalValue = HttpCache.enabled
+    HttpCache.enabled = true
     try {
       // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
       val requiredBands = Set(
@@ -398,7 +336,7 @@ class OpenSearchClientTest {
         XML.loadString(str) // Test if XML is parsable
       }
     } finally {
-      httpsCache.enabled = httpsCacheEnabledOriginalValue
+      HttpCache.enabled = httpsCacheEnabledOriginalValue
     }
   }
 

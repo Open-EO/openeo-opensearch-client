@@ -336,7 +336,7 @@ object OpenSearchResponses {
 
         val uri = new URI(path)
         return uri.resolve(uri.getPath).toURL
-          .openConnection.asInstanceOf[HttpsURLConnection]
+          .openConnection.asInstanceOf[java.net.HttpURLConnection]
           .getInputStream
       } else {
         gdalPrefix = if (getAwsDirect()) "/vsis3" else ""
@@ -406,8 +406,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          var filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
-//          filePath = filePath.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
+          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
         })
     }
