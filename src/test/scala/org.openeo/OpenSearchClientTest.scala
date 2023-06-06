@@ -275,7 +275,7 @@ class OpenSearchClientTest {
       )
       val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
 
-      // Testing special link to bands that contain suna and view angle information:
+      // Testing special link to bands that contain sun and view angle information:
       val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
       if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
         println("Ignorind old product")
@@ -322,7 +322,7 @@ class OpenSearchClientTest {
       )
       val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
 
-      // Testing special link to bands that contain suna and view angle information:
+      // Testing special link to bands that contain sun and view angle information:
       val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
       if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
         println("Ignoring old product")

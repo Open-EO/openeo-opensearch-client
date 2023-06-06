@@ -12,11 +12,10 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
     if (!HttpCache.enabled) {
       openConnectionSuper(url)
     } else if (url.toString.contains(".tif")) {
-      // Tiff could be requested partially, and this proxy does not support that
+      println("Tiff could be requested partially, and HttpCache does not support that. " + url)
       openConnectionSuper(url)
     } else
       new java.net.HttpURLConnection(url) {
-        println("HttpCache.openConnection()")
         private lazy val inputStream = {
           val fullUrl = this.url.toString
           val idx = fullUrl.indexOf("//")
@@ -64,12 +63,7 @@ object HttpCache {
   // This method can be called at most once in a given Java Virtual Machine:
   java.net.URL.setURLStreamHandlerFactory(new java.net.URLStreamHandlerFactory() {
     override def createURLStreamHandler(protocol: String): java.net.URLStreamHandler = {
-      println("createURLStreamHandler")
-      if (protocol == "http" || protocol == "https")
-        if (enabled)
-          httpsCache
-        else null
-      else null
+      if ((protocol == "http" || protocol == "https") && enabled) httpsCache else null
     }
   })
 }

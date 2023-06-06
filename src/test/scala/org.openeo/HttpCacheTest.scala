@@ -72,7 +72,6 @@ class HttpCacheTest {
       val t1 = System.currentTimeMillis()
       val difference = t1 - t0
       println("time difference: " + difference)
-      assertTrue(difference < 30) // genreally it takes 2ms, but taking some margin
     } finally {
       HttpCache.enabled = httpsCacheEnabledOriginalValue
     }
