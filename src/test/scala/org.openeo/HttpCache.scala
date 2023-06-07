@@ -3,9 +3,13 @@ package org.openeo
 import java.io.{File, FileInputStream, InputStream}
 import java.net.URL
 import java.nio.file.{Files, Paths}
+import java.util.UUID
 
 class HttpCache extends sun.net.www.protocol.https.Handler {
 
+  /**
+   * Keep reference to original method so it can be called from within HttpURLConnection.
+   */
   def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
 
   override def openConnection(url: URL): java.net.URLConnection =
@@ -34,16 +38,30 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
             println("Caching request url: " + url)
-            Files.createDirectories(Paths.get(cachePath, basePath))
-            val stream = openConnectionSuper(url).getInputStream
-            val tmpBeforeAtomicMove = Paths.get(cachePath, java.util.UUID.randomUUID().toString)
-            Files.copy(stream, tmpBeforeAtomicMove)
-            Files.move(tmpBeforeAtomicMove, path)
+            try {
+              Files.createDirectories(Paths.get(cachePath, basePath))
+              val stream = openConnectionSuper(url).getInputStream
+              val tmpBeforeAtomicMove = Paths.get(cachePath, "unconfirmed_download_" + UUID.randomUUID())
+              Files.copy(stream, tmpBeforeAtomicMove)
+              Files.move(tmpBeforeAtomicMove, path)
+              new FileInputStream(new File(path.toString))
+            }
+            catch {
+              case e: Throwable =>
+                println("Caching error. Will rerty without caching. " + e)
+                // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
+                openConnectionSuper(url).getInputStream
+            }
           } else {
             println("Using cached request: " + path.toUri)
             println("Using cached request url: " + url)
+
+            // The caller should close the returned stream. For example:
+            //           val source = Source.fromURL(new URL(url))
+            //           val content = source.getLines.mkString("\n")
+            //           source.close()
+            new FileInputStream(new File(path.toString))
           }
-          new FileInputStream(new File(path.toString))
         }
 
         override def getInputStream: InputStream = inputStream

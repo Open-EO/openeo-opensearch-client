@@ -4,12 +4,12 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Ignore
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
+import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
-import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
 import java.net.URL
@@ -57,7 +57,16 @@ object OpenSearchClientTest {
 }
 
 class OpenSearchClientTest {
-  import OpenSearchClientTest._
+
+  private var httpsCacheEnabledOriginalValue = false
+
+  @BeforeEach def beforeEach(): Unit = {
+    httpsCacheEnabledOriginalValue = HttpCache.enabled
+  }
+
+  @AfterEach def afterEach(): Unit = {
+    HttpCache.enabled = httpsCacheEnabledOriginalValue
+  }
 
   @Test
   def testOscarsGetProducts(): Unit = {
@@ -247,49 +256,44 @@ class OpenSearchClientTest {
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 5min to 1sec.
-    val httpsCacheEnabledOriginalValue = HttpCache.enabled
     HttpCache.enabled = true
-    try {
-      // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
-      val requiredBands = Set(
-        "IMG_DATA_Band_60m_1_Tile1_Data",
-        "IMG_DATA_Band_10m_1_Tile1_Data",
-        "IMG_DATA_Band_10m_2_Tile1_Data",
-        "IMG_DATA_Band_10m_3_Tile1_Data",
-        "IMG_DATA_Band_20m_1_Tile1_Data",
-        "IMG_DATA_Band_20m_2_Tile1_Data",
-        "IMG_DATA_Band_20m_3_Tile1_Data",
-        "IMG_DATA_Band_10m_4_Tile1_Data",
-        "IMG_DATA_Band_20m_4_Tile1_Data",
-        "IMG_DATA_Band_60m_2_Tile1_Data",
-        "IMG_DATA_Band_60m_3_Tile1_Data",
-        "IMG_DATA_Band_20m_5_Tile1_Data",
-        "IMG_DATA_Band_20m_6_Tile1_Data",
-        "IMG_DATA_Band_TCI_Tile1_Data",
-        "S2_Level-1C_Tile1_Metadata",
-        // Emile: Specific bands don't seem fully supported yet
-        // "S2_Level-1C_Tile1_Metadata##0",
-        // "S2_Level-1C_Tile1_Metadata##1",
-        // "S2_Level-1C_Tile1_Metadata##2",
-        // "S2_Level-1C_Tile1_Metadata##3",
-      )
-      val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
+    // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
+    val requiredBands = Set(
+      "IMG_DATA_Band_60m_1_Tile1_Data",
+      "IMG_DATA_Band_10m_1_Tile1_Data",
+      "IMG_DATA_Band_10m_2_Tile1_Data",
+      "IMG_DATA_Band_10m_3_Tile1_Data",
+      "IMG_DATA_Band_20m_1_Tile1_Data",
+      "IMG_DATA_Band_20m_2_Tile1_Data",
+      "IMG_DATA_Band_20m_3_Tile1_Data",
+      "IMG_DATA_Band_10m_4_Tile1_Data",
+      "IMG_DATA_Band_20m_4_Tile1_Data",
+      "IMG_DATA_Band_60m_2_Tile1_Data",
+      "IMG_DATA_Band_60m_3_Tile1_Data",
+      "IMG_DATA_Band_20m_5_Tile1_Data",
+      "IMG_DATA_Band_20m_6_Tile1_Data",
+      "IMG_DATA_Band_TCI_Tile1_Data",
+      "S2_Level-1C_Tile1_Metadata",
+      // Emile: Specific bands don't seem fully supported yet
+      // "S2_Level-1C_Tile1_Metadata##0",
+      // "S2_Level-1C_Tile1_Metadata##1",
+      // "S2_Level-1C_Tile1_Metadata##2",
+      // "S2_Level-1C_Tile1_Metadata##3",
+    )
+    val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L1C", "S2MSI1C", requiredBands)
 
-      // Testing special link to bands that contain sun and view angle information:
-      val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
-      if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
-        println("Ignorind old product")
-      } else {
-        val str = {
-          val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
-          try in.mkString.trim
-          finally in.close()
-        }
-        assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
-        XML.loadString(str) // Test if XML is parsable
+    // Testing special link to bands that contain sun and view angle information:
+    val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
+    if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
+      println("Ignorind old product")
+    } else {
+      val str = {
+        val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
+        try in.mkString.trim
+        finally in.close()
       }
-    } finally {
-      HttpCache.enabled = httpsCacheEnabledOriginalValue
+      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+      XML.loadString(str) // Test if XML is parsable
     }
   }
 
@@ -297,46 +301,41 @@ class OpenSearchClientTest {
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 3min to 2sec.
-    val httpsCacheEnabledOriginalValue = HttpCache.enabled
     HttpCache.enabled = true
-    try {
-      // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
-      val requiredBands = Set(
-        "IMG_DATA_Band_B01_60m_Tile1_Data",
-        "IMG_DATA_Band_B02_10m_Tile1_Data",
-        "IMG_DATA_Band_B03_10m_Tile1_Data",
-        "IMG_DATA_Band_B04_10m_Tile1_Data",
-        "IMG_DATA_Band_B05_20m_Tile1_Data",
-        "IMG_DATA_Band_B06_20m_Tile1_Data",
-        "IMG_DATA_Band_B07_20m_Tile1_Data",
-        "IMG_DATA_Band_B08_10m_Tile1_Data",
-        "IMG_DATA_Band_B8A_20m_Tile1_Data",
-        "IMG_DATA_Band_B09_60m_Tile1_Data",
-        "IMG_DATA_Band_B11_20m_Tile1_Data",
-        "IMG_DATA_Band_B12_20m_Tile1_Data",
-        "IMG_DATA_Band_TCI_10m_Tile1_Data",
-        "IMG_DATA_Band_WVP_10m_Tile1_Data",
-        "IMG_DATA_Band_AOT_20m_Tile1_Data",
-        "IMG_DATA_Band_SCL_20m_Tile1_Data",
-        "S2_Level-2A_Product_Metadata",
-      )
-      val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
+    // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
+    val requiredBands = Set(
+      "IMG_DATA_Band_B01_60m_Tile1_Data",
+      "IMG_DATA_Band_B02_10m_Tile1_Data",
+      "IMG_DATA_Band_B03_10m_Tile1_Data",
+      "IMG_DATA_Band_B04_10m_Tile1_Data",
+      "IMG_DATA_Band_B05_20m_Tile1_Data",
+      "IMG_DATA_Band_B06_20m_Tile1_Data",
+      "IMG_DATA_Band_B07_20m_Tile1_Data",
+      "IMG_DATA_Band_B08_10m_Tile1_Data",
+      "IMG_DATA_Band_B8A_20m_Tile1_Data",
+      "IMG_DATA_Band_B09_60m_Tile1_Data",
+      "IMG_DATA_Band_B11_20m_Tile1_Data",
+      "IMG_DATA_Band_B12_20m_Tile1_Data",
+      "IMG_DATA_Band_TCI_10m_Tile1_Data",
+      "IMG_DATA_Band_WVP_10m_Tile1_Data",
+      "IMG_DATA_Band_AOT_20m_Tile1_Data",
+      "IMG_DATA_Band_SCL_20m_Tile1_Data",
+      "S2_Level-2A_Product_Metadata",
+    )
+    val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
 
-      // Testing special link to bands that contain sun and view angle information:
-      val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
-      if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
-        println("Ignoring old product")
-      } else {
-        val str = {
-          val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
-          try in.mkString.trim
-          finally in.close()
-        }
-        assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
-        XML.loadString(str) // Test if XML is parsable
+    // Testing special link to bands that contain sun and view angle information:
+    val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
+    if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
+      println("Ignoring old product")
+    } else {
+      val str = {
+        val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
+        try in.mkString.trim
+        finally in.close()
       }
-    } finally {
-      HttpCache.enabled = httpsCacheEnabledOriginalValue
+      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+      XML.loadString(str) // Test if XML is parsable
     }
   }
 
