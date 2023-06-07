@@ -93,7 +93,7 @@ class HttpCacheTest {
 
   @Test
   def testRasterSource(): Unit = {
-    HttpCache.enabled = false // When disabled, there should be no errors
+    HttpCache.enabled = true // Tiff not fully supported, but should not give errors anyway
     val t0 = System.currentTimeMillis()
 
     val b04RasterSource = GeoTiffRasterSource("https://artifactory.vgt.vito.be/testdata-public/S2_B04_timeseries.tiff")
@@ -101,6 +101,6 @@ class HttpCacheTest {
 
     val t1 = System.currentTimeMillis()
     val difference = t1 - t0
-    println("time difference: " + difference) // Around 3000ms
+    println("time difference: " + difference) // >2000ms
   }
 }
