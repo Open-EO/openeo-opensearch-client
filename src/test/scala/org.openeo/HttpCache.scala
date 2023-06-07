@@ -40,15 +40,16 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
             println("Caching request url: " + url)
             try {
               Files.createDirectories(Paths.get(cachePath, basePath))
-              val stream = openConnectionSuper(url).getInputStream
               val tmpBeforeAtomicMove = Paths.get(cachePath, "unconfirmed_download_" + UUID.randomUUID())
-              Files.copy(stream, tmpBeforeAtomicMove)
+              val stream = openConnectionSuper(url).getInputStream
+              try Files.copy(stream, tmpBeforeAtomicMove)
+              finally stream.close()
               Files.move(tmpBeforeAtomicMove, path)
               new FileInputStream(new File(path.toString))
             }
             catch {
               case e: Throwable =>
-                println("Caching error. Will rerty without caching. " + e)
+                println("Caching error. Will retry without caching. " + e)
                 // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
                 openConnectionSuper(url).getInputStream
             }
