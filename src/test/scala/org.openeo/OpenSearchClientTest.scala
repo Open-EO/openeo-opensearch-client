@@ -403,10 +403,14 @@ class OpenSearchClientTest {
     source.close()
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
-    for (f <- features)
-      for (l <- f.links)
-        if (l.href.toString.contains("/PHOEBUS-core/"))
-          throw new Exception("There should be no PHOEBUS-core in results.") // processingBaseline == 2.08
+    for {
+      f <- features
+      l <- f.links
+      if l.href.toString.contains("/PHOEBUS-core/")
+    } {
+      // there used to be a product with processingBaseline == 2.08
+      throw new Exception("There should be no PHOEBUS-core in results.")
+    }
     assertEquals(1, features.length)
   }
 }

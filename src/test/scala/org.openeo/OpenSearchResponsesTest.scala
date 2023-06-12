@@ -8,7 +8,7 @@ import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
-import java.net.{URI, URL}
+import java.net.URI
 import java.time.ZonedDateTime
 import scala.io.{Codec, Source}
 
