@@ -8,7 +8,7 @@ import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
-import java.net.URI
+import java.net.{URI, URL}
 import java.time.ZonedDateTime
 import scala.io.{Codec, Source}
 
@@ -151,8 +151,8 @@ class OpenSearchResponsesTest {
   }
 
   @Test
-  def parsecreaoPhoebus(): Unit = {
-    val collectionsResponse = loadJsonResource("creaoPhoebus.json")
+  def parseCreodiasPhoebus(): Unit = {
+    val collectionsResponse = loadJsonResource("creodiasPhoebus.json")
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(1, features.length)
