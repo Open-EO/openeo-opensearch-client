@@ -50,7 +50,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
             catch {
               case e: java.io.FileNotFoundException if e.getMessage == url.toString =>
                 // Those requests are not worth repeating
-                println("Sever returned 404 or 410: " + url)
+                println("Server returned 404 or 410: " + url)
                 throw e
               case e: Throwable =>
                 println("Caching error. Will retry without caching. " + e + "  " + e.getStackTraceString)
