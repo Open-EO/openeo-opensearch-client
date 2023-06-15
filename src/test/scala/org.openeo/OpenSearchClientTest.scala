@@ -19,6 +19,7 @@ import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
 import scala.xml.XML
+import scala.util.Using
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -395,12 +396,14 @@ class OpenSearchClientTest {
   }
 
   @Test
+
+  /**
+   * Links refering to PHOEBUS-core should be ignored: https://github.com/Open-EO/openeo-opensearch-client/issues/16
+   */
   def parseCreodiasCorruptPhoebus(): Unit = {
     HttpCache.enabled = true
     val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
-    val source = Source.fromURL(new URL(url))
-    val collectionsResponse = source.getLines.mkString("\n")
-    source.close()
+    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     for {
