@@ -46,9 +46,9 @@ object OpenSearchResponses {
    * @return
    */
   def sentinel2Reformat(title: String, href:String): String = {
-    if (title == "S2_Level-2A_Tile1_Metadata" && href.contains("L2A")) {
+    if (title == "S2_Level-2A_Tile1_Data" && href.contains("L2A")) {
       // logic for processingBaseline 2.07 and 99.99
-      return "S2_Level-2A_Product_Metadata"
+      return "S2_Level-2A_Tile1_Metadata"
     }
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
@@ -69,7 +69,7 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String])
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -84,7 +84,6 @@ object OpenSearchResponses {
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-                     var pixelValueOffset:Double = 0,
                      ){
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
@@ -412,13 +411,52 @@ object OpenSearchResponses {
       }
       val xml = XML.load(inputStream)
 
-      (xml \\ "dataObject" )
+      var links = (xml \\ "dataObject" )
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
           val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
-        })
+      })
+      if(links.length == 17){
+        println("sdfdsf")
+      }
+
+      // TODO, separate L1C and L2A?
+      // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
+      val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
+      metadataUrl match {
+        case Some(link) =>
+          val inputStreamMTD: InputStream = loadMetadata(link.href.toString) // eg: MTD_MSIL2A.xml
+          if (inputStreamMTD != null) {
+            try {
+              val xmlMTD = XML.load(inputStreamMTD)
+              var offsetNodes = xmlMTD \\ "BOA_ADD_OFFSET_VALUES_LIST" \\ "BOA_ADD_OFFSET"
+              if (offsetNodes.length == 0)
+                offsetNodes = xmlMTD \\ "Radiometric_Offset_List" \\ "RADIO_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                println("Found ADD_OFFSET nodes: " + offsetNodes.length)
+                if (offsetNodes.length != 13) {
+                  logger.warn("TODO: handle bands more precisely.") // TODO
+                }
+                links = links.map(l => {
+                  val l1cRegex = "IMG_DATA_Band_[0-9]+m_[0-9]_Tile1_Data".r
+                  val l2aRegex = "IMG_DATA_Band_B[0-9]+A?_[0-9]+m_Tile1_Data".r
+                  if (l.title.isDefined &&
+                    (l1cRegex.findFirstMatchIn(l.title.get).isDefined || l2aRegex.findFirstMatchIn(l.title.get).isDefined)
+                  ) {
+                    l.copy(pixelValueOffset = Some(-1000.0))
+                  } else l
+                })
+              }
+            } finally {
+              inputStreamMTD.close()
+            }
+          }
+        case _=>
+      }
+
+      links
     }
 
     /**
@@ -489,19 +527,14 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
-            // 99.99 seems like a value we should ignore
-            // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
-            val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
-
             if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }
