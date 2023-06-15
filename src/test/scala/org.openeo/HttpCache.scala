@@ -48,8 +48,12 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
               new FileInputStream(new File(path.toString))
             }
             catch {
+              case e: java.io.FileNotFoundException if e.getMessage == url.toString =>
+                // Those requests are not worth repeating
+                println("Server returned 404 or 410: " + url)
+                throw e
               case e: Throwable =>
-                println("Caching error. Will retry without caching. " + e)
+                println("Caching error. Will retry without caching. " + e + "  " + e.getStackTraceString)
                 // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
                 openConnectionSuper(url).getInputStream
             }

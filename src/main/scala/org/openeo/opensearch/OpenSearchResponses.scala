@@ -128,6 +128,16 @@ object OpenSearchResponses {
   }
 
   /**
+   * Removes features/products that contain references to PHOEBUS-core files.
+   * Those occur often in processing baseline 2.08 products.
+   */
+  private def removePhoebusFeatures(features: Array[Feature]): Array[Feature] = {
+    features.filter(f => !f.links.exists(
+      l => l.href.toString.contains("/PHOEBUS-core/") && l.href.toString.contains("//")
+    ))
+  }
+
+  /**
    * Should be under O(n*n)
    */
   def dedupFeatures(features: Array[Feature]): Array[Feature] = {
@@ -241,7 +251,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -290,7 +300,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -505,7 +515,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }

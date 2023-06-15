@@ -19,13 +19,14 @@ import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
 import scala.xml.XML
+import scala.util.Using
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-//    arguments(LocalDate.parse("2015-11-23"), new java.lang.Double(2.00)), // No products with this processingBaseline found
+    //    arguments(LocalDate.parse("2015-11-23"), new java.lang.Double(2.00)), // No products with this processingBaseline found
     arguments(LocalDate.parse("2015-12-15"), new java.lang.Double(2.01)),
     arguments(LocalDate.parse("2016-05-03"), new java.lang.Double(2.02)),
-//    arguments(LocalDate.parse("2016-06-09"), new java.lang.Double(2.03)), // No products with this processingBaseline found
+    //    arguments(LocalDate.parse("2016-06-09"), new java.lang.Double(2.03)), // No products with this processingBaseline found
     arguments(LocalDate.parse("2016-06-15"), new java.lang.Double(2.04)),
     arguments(LocalDate.parse("2017-04-27"), new java.lang.Double(2.05)),
     arguments(LocalDate.parse("2017-10-23"), new java.lang.Double(2.06)),
@@ -41,7 +42,7 @@ object OpenSearchClientTest {
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
     arguments(LocalDate.parse("2018-03-26"), new java.lang.Double(2.07)),
-    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)),
+    //    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)), Has only PHOEBUS-core products
     arguments(LocalDate.parse("2018-10-08"), new java.lang.Double(2.09)),
     arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.10)),
     arguments(LocalDate.parse("2018-11-21"), new java.lang.Double(2.11)),
@@ -284,8 +285,8 @@ class OpenSearchClientTest {
 
     // Testing special link to bands that contain sun and view angle information:
     val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
-    if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
-      println("Ignorind old product")
+    if (metadataBand.href.toString.contains("/PHOEBUS-core/")) {
+      throw new Exception("There should be no PHOEBUS-core in results.")
     } else {
       val str = {
         val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
@@ -326,8 +327,8 @@ class OpenSearchClientTest {
 
     // Testing special link to bands that contain sun and view angle information:
     val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
-    if (metadataBand.href.toString.contains("/PHOEBUS-core/") && processingBaseline == 2.08) {
-      println("Ignoring old product")
+    if (metadataBand.href.toString.contains("/PHOEBUS-core/")) {
+      throw new Exception("There should be no PHOEBUS-core in results.")
     } else {
       val str = {
         val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
@@ -392,5 +393,27 @@ class OpenSearchClientTest {
     // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
     // This is the product we are actually interested in.
     features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
+  }
+
+  @Test
+
+  /**
+   * Links refering to PHOEBUS-core should be ignored: https://github.com/Open-EO/openeo-opensearch-client/issues/16
+   */
+  def parseCreodiasCorruptPhoebus(): Unit = {
+    HttpCache.enabled = true
+    val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
+    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
+
+    for {
+      f <- features
+      l <- f.links
+      if l.href.toString.contains("/PHOEBUS-core/")
+    } {
+      // there used to be a product with processingBaseline == 2.08
+      throw new Exception("There should be no PHOEBUS-core in results.")
+    }
+    assertEquals(1, features.length)
   }
 }

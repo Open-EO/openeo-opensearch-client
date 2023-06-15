@@ -151,8 +151,8 @@ class OpenSearchResponsesTest {
   }
 
   @Test
-  def parsecreaoPhoebus(): Unit = {
-    val collectionsResponse = loadJsonResource("creaoPhoebus.json")
+  def parseCreodiasPhoebus(): Unit = {
+    val collectionsResponse = loadJsonResource("creodiasPhoebus.json")
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(1, features.length)
