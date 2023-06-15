@@ -396,7 +396,6 @@ class OpenSearchClientTest {
   }
 
   @Test
-
   /**
    * Links refering to PHOEBUS-core should be ignored: https://github.com/Open-EO/openeo-opensearch-client/issues/16
    */
