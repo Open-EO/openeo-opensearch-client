@@ -454,6 +454,10 @@ object OpenSearchResponses {
                   } else l
                 })
               }
+            } catch {
+              // This occured in mocked automatic tests. I did not see it on the real data yet.
+              case e: Throwable => logger.warn("Failed to load " + link.href.toString +
+                ". Error: " + e.getMessage)
             } finally {
               inputStreamMTD.close()
             }
