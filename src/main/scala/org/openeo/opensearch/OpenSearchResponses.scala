@@ -84,7 +84,12 @@ object OpenSearchResponses {
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-                     ){
+                     var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
+                    ) {
+    if (pixelValueOffset != 0.0) {
+      // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
+      throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
+    }
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
