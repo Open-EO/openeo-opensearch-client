@@ -2,8 +2,8 @@ package org.openeo
 
 import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
-import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
-import org.junit.jupiter.api.Test
+import org.junit.Assert._
+import org.junit.Test
 import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
@@ -220,10 +220,10 @@ class OpenSearchResponsesTest {
     try FeatureCollection.parse(incompleteResponse)
     catch {
       case e =>
-        assertTrue(e.getMessage contains """"type": "FeatureCollection"""", e.getMessage)
+        assertTrue(e.getMessage, e.getMessage contains """"type": "FeatureCollection"""")
 
         val stackTrace = this.stackTrace(e)
-        assertTrue(stackTrace contains getClass.getName, stackTrace)
+        assertTrue(stackTrace, stackTrace contains getClass.getName)
     }
   }
 
@@ -246,10 +246,10 @@ class OpenSearchResponsesTest {
     try FeatureCollection.parse(faultyResponse)
     catch {
       case e =>
-        assertTrue(e.getMessage contains """"type": "FeatureCollection"""", e.getMessage)
+        assertTrue(e.getMessage, e.getMessage contains """"type": "FeatureCollection"""")
 
         val stackTrace = this.stackTrace(e)
-        assertTrue(stackTrace contains getClass.getName, stackTrace)
+        assertTrue(stackTrace, stackTrace contains getClass.getName)
     }
   }
 

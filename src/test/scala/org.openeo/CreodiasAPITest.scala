@@ -2,7 +2,7 @@ package org.openeo
 
 import geotrellis.proj4.CRS
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import org.openeo.opensearch.backends.CreodiasClient
 
 import java.time.ZoneOffset.UTC

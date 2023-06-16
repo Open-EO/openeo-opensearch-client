@@ -1,8 +1,8 @@
 package org.openeo
 
 import geotrellis.vector.Extent
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.Assert.assertEquals
+import org.junit.Test
 import org.openeo.opensearch.MGRS
 
 class MGRSTest {
