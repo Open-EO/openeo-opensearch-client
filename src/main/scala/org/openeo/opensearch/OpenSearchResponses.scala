@@ -423,9 +423,6 @@ object OpenSearchResponses {
           val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
       })
-      if(links.length == 17){
-        println("sdfdsf")
-      }
 
       // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
       val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
