@@ -172,6 +172,9 @@ class OpenSearchResponsesTest {
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
     val link = features(0).links.find(l => l.title.get.contains("B04")).get
     assertEquals(-1000, link.pixelValueOffset.get, 1e-6)
+
+    val linkSCL = features(0).links.find(l => l.title.get.contains("SCL")).get
+    assertEquals(0, linkSCL.pixelValueOffset.get, 1e-6)
   }
 
   @Test

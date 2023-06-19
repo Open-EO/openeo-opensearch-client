@@ -427,7 +427,6 @@ object OpenSearchResponses {
         println("sdfdsf")
       }
 
-      // TODO, separate L1C and L2A?
       // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
       val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
       metadataUrl match {
@@ -436,21 +435,81 @@ object OpenSearchResponses {
           if (inputStreamMTD != null) {
             try {
               val xmlMTD = XML.load(inputStreamMTD)
-              var offsetNodes = xmlMTD \\ "BOA_ADD_OFFSET_VALUES_LIST" \\ "BOA_ADD_OFFSET"
-              if (offsetNodes.length == 0)
-                offsetNodes = xmlMTD \\ "Radiometric_Offset_List" \\ "RADIO_ADD_OFFSET"
+
+              def extractNodeText(node: Node) =
+                node.child.filter(_.isInstanceOf[scala.xml.Text]).map(_.text).mkString("")
+
+              var offsetNodes = xmlMTD \\ "Radiometric_Offset_List" \\ "RADIO_ADD_OFFSET"
               if (offsetNodes.length > 0) {
-                println("Found ADD_OFFSET nodes: " + offsetNodes.length)
                 if (offsetNodes.length != 13) {
-                  logger.warn("TODO: handle bands more precisely.") // TODO
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
                 }
+                val idToBandList = List(
+                  "IMG_DATA_Band_60m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_2_Tile1_Data",
+                  "IMG_DATA_Band_10m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_1_Tile1_Data",
+                  "IMG_DATA_Band_20m_2_Tile1_Data",
+                  "IMG_DATA_Band_20m_3_Tile1_Data",
+                  "IMG_DATA_Band_10m_4_Tile1_Data",
+                  "IMG_DATA_Band_20m_4_Tile1_Data",
+                  "IMG_DATA_Band_60m_2_Tile1_Data",
+                  "IMG_DATA_Band_60m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_5_Tile1_Data",
+                  "IMG_DATA_Band_20m_6_Tile1_Data",
+                  "IMG_DATA_Band_TCI_Tile1_Data",
+                )
+
                 links = links.map(l => {
-                  val l1cRegex = "IMG_DATA_Band_[0-9]+m_[0-9]_Tile1_Data".r
-                  val l2aRegex = "IMG_DATA_Band_B[0-9]+A?_[0-9]+m_Tile1_Data".r
-                  if (l.title.isDefined &&
-                    (l1cRegex.findFirstMatchIn(l.title.get).isDefined || l2aRegex.findFirstMatchIn(l.title.get).isDefined)
-                  ) {
-                    l.copy(pixelValueOffset = Some(-1000.0))
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
+                  } else l
+                })
+              }
+
+
+              offsetNodes = xmlMTD \\ "BOA_ADD_OFFSET_VALUES_LIST" \\ "BOA_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                if (offsetNodes.length != 13) {
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
+                }
+                val idToBandList = List(
+                  "IMG_DATA_Band_B01_60m_Tile1_Data",
+                  "IMG_DATA_Band_B02_10m_Tile1_Data",
+                  "IMG_DATA_Band_B03_10m_Tile1_Data",
+                  "IMG_DATA_Band_B04_10m_Tile1_Data",
+                  "IMG_DATA_Band_B05_20m_Tile1_Data",
+                  "IMG_DATA_Band_B06_20m_Tile1_Data",
+                  "IMG_DATA_Band_B07_20m_Tile1_Data",
+                  "IMG_DATA_Band_B08_10m_Tile1_Data",
+                  "IMG_DATA_Band_B8A_20m_Tile1_Data",
+                  "IMG_DATA_Band_B09_60m_Tile1_Data",
+                  "IMG_DATA_Band_B11_20m_Tile1_Data",
+                  "IMG_DATA_Band_B12_20m_Tile1_Data",
+                  "IMG_DATA_Band_TCI_10m_Tile1_Data",
+                  "IMG_DATA_Band_WVP_10m_Tile1_Data",
+                  "IMG_DATA_Band_AOT_20m_Tile1_Data",
+                  "IMG_DATA_Band_SCL_20m_Tile1_Data",
+                )
+
+                links = links.map(l => {
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
                   } else l
                 })
               }
@@ -462,7 +521,7 @@ object OpenSearchResponses {
               inputStreamMTD.close()
             }
           }
-        case _=>
+        case _ =>
       }
 
       links
