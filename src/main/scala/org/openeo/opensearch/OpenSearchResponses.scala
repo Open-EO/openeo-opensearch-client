@@ -46,9 +46,9 @@ object OpenSearchResponses {
    * @return
    */
   def sentinel2Reformat(title: String, href:String): String = {
-    if (title == "S2_Level-2A_Tile1_Metadata" && href.contains("L2A")) {
+    if (title == "S2_Level-2A_Tile1_Data" && href.contains("L2A")) {
       // logic for processingBaseline 2.07 and 99.99
-      return "S2_Level-2A_Product_Metadata"
+      return "S2_Level-2A_Tile1_Metadata"
     }
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
@@ -69,7 +69,7 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String])
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -84,8 +84,12 @@ object OpenSearchResponses {
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-                     var pixelValueOffset:Double = 0,
-                     ){
+                     var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
+                    ) {
+    if (pixelValueOffset != 0.0) {
+      // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
+      throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
+    }
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -412,13 +416,112 @@ object OpenSearchResponses {
       }
       val xml = XML.load(inputStream)
 
-      (xml \\ "dataObject" )
+      var links = (xml \\ "dataObject" )
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
           val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
-        })
+      })
+
+      // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
+      val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
+      metadataUrl match {
+        case Some(link) =>
+          val inputStreamMTD: InputStream = loadMetadata(link.href.toString) // eg: MTD_MSIL2A.xml
+          if (inputStreamMTD != null) {
+            try {
+              val xmlMTD = XML.load(inputStreamMTD)
+
+              def extractNodeText(node: Node) =
+                node.child.filter(_.isInstanceOf[scala.xml.Text]).map(_.text).mkString("")
+
+              var offsetNodes = xmlMTD \\ "Radiometric_Offset_List" \\ "RADIO_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                if (offsetNodes.length != 13) {
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
+                }
+                val idToBandList = List(
+                  "IMG_DATA_Band_60m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_2_Tile1_Data",
+                  "IMG_DATA_Band_10m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_1_Tile1_Data",
+                  "IMG_DATA_Band_20m_2_Tile1_Data",
+                  "IMG_DATA_Band_20m_3_Tile1_Data",
+                  "IMG_DATA_Band_10m_4_Tile1_Data",
+                  "IMG_DATA_Band_20m_4_Tile1_Data",
+                  "IMG_DATA_Band_60m_2_Tile1_Data",
+                  "IMG_DATA_Band_60m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_5_Tile1_Data",
+                  "IMG_DATA_Band_20m_6_Tile1_Data",
+                  "IMG_DATA_Band_TCI_Tile1_Data",
+                )
+
+                links = links.map(l => {
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
+                  } else l
+                })
+              }
+
+
+              offsetNodes = xmlMTD \\ "BOA_ADD_OFFSET_VALUES_LIST" \\ "BOA_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                if (offsetNodes.length != 13) {
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
+                }
+                val idToBandList = List(
+                  "IMG_DATA_Band_B01_60m_Tile1_Data",
+                  "IMG_DATA_Band_B02_10m_Tile1_Data",
+                  "IMG_DATA_Band_B03_10m_Tile1_Data",
+                  "IMG_DATA_Band_B04_10m_Tile1_Data",
+                  "IMG_DATA_Band_B05_20m_Tile1_Data",
+                  "IMG_DATA_Band_B06_20m_Tile1_Data",
+                  "IMG_DATA_Band_B07_20m_Tile1_Data",
+                  "IMG_DATA_Band_B08_10m_Tile1_Data",
+                  "IMG_DATA_Band_B8A_20m_Tile1_Data",
+                  "IMG_DATA_Band_B09_60m_Tile1_Data",
+                  "IMG_DATA_Band_B11_20m_Tile1_Data",
+                  "IMG_DATA_Band_B12_20m_Tile1_Data",
+                  "IMG_DATA_Band_TCI_10m_Tile1_Data",
+                  "IMG_DATA_Band_WVP_10m_Tile1_Data",
+                  "IMG_DATA_Band_AOT_20m_Tile1_Data",
+                  "IMG_DATA_Band_SCL_20m_Tile1_Data",
+                )
+
+                links = links.map(l => {
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
+                  } else l
+                })
+              }
+            } catch {
+              // This occured in mocked automatic tests. I did not see it on the real data yet.
+              case e: Throwable => logger.warn("Failed to load " + link.href.toString +
+                ". Error: " + e.getMessage)
+            } finally {
+              inputStreamMTD.close()
+            }
+          }
+        case _ =>
+      }
+
+      links
     }
 
     /**
@@ -489,19 +592,14 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
-            // 99.99 seems like a value we should ignore
-            // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
-            val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
-
             if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }

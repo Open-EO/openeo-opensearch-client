@@ -86,7 +86,7 @@ object HttpCache {
   // This method can be called at most once in a given Java Virtual Machine:
   java.net.URL.setURLStreamHandlerFactory(new java.net.URLStreamHandlerFactory() {
     override def createURLStreamHandler(protocol: String): java.net.URLStreamHandler = {
-      if ((protocol == "http" || protocol == "https") && enabled) httpsCache else null
+      if (protocol == "http" || protocol == "https") httpsCache else null
     }
   })
 }

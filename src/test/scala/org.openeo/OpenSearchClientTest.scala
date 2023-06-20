@@ -275,6 +275,7 @@ class OpenSearchClientTest {
       "IMG_DATA_Band_20m_6_Tile1_Data",
       "IMG_DATA_Band_TCI_Tile1_Data",
       "S2_Level-1C_Tile1_Metadata",
+      "S2_Level-1C_Product_Metadata",
       // Emile: Specific bands don't seem fully supported yet
       // "S2_Level-1C_Tile1_Metadata##0",
       // "S2_Level-1C_Tile1_Metadata##1",
@@ -321,6 +322,7 @@ class OpenSearchClientTest {
       "IMG_DATA_Band_WVP_10m_Tile1_Data",
       "IMG_DATA_Band_AOT_20m_Tile1_Data",
       "IMG_DATA_Band_SCL_20m_Tile1_Data",
+      "S2_Level-2A_Tile1_Metadata",
       "S2_Level-2A_Product_Metadata",
     )
     val selectedFeature = testManifestLevelSentinel2(date, processingBaseline, "L2A", "S2MSI2A", requiredBands)
