@@ -420,7 +420,9 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+          // XML will probably not be loaded by GDAL
+          val gdalPrefixLocal = if (fileLocation.toString.toLowerCase.endsWith(".xml")) "" else gdalPrefix
+          val filePath =s"$gdalPrefixLocal${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
       })
 
@@ -490,6 +492,7 @@ object OpenSearchResponses {
                   "IMG_DATA_Band_B08_10m_Tile1_Data",
                   "IMG_DATA_Band_B8A_20m_Tile1_Data",
                   "IMG_DATA_Band_B09_60m_Tile1_Data",
+                  "IMG_DATA_Band_B10_60m_Tile1_Data", // Never occurs, but needed to have 13 bands. TODO: Verify on staging.
                   "IMG_DATA_Band_B11_20m_Tile1_Data",
                   "IMG_DATA_Band_B12_20m_Tile1_Data",
                   "IMG_DATA_Band_TCI_10m_Tile1_Data",
