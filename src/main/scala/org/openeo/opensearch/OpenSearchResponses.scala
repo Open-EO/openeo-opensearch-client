@@ -343,7 +343,8 @@ object OpenSearchResponses {
       "TRUE".equals(getenv("AWS_DIRECT"))
     }
 
-    def loadMetadata(path:String):InputStream = {
+    def loadMetadata(pathArg:String):InputStream = withRetries {
+      val path = pathArg.replace("/vsis3/", "/")
       var gdalPrefix = ""
       val inputStream = if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
@@ -420,9 +421,7 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          // XML will probably not be loaded by GDAL
-          val gdalPrefixLocal = if (fileLocation.toString.toLowerCase.endsWith(".xml")) "" else gdalPrefix
-          val filePath =s"$gdalPrefixLocal${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
       })
 
