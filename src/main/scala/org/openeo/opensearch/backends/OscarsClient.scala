@@ -24,7 +24,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
         .params(attributeValues.mapValues(_.toString).toSeq)
 
       try  {
-        val json = withRetries { execute(getProducts) }
+        val json = execute(getProducts)
         FeatureCollection.parse(json).features.headOption.map(_.nominalDate.toLocalDate)
       } catch {
         case _: HttpStatusException => Option.empty
@@ -90,7 +90,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
         .param("end", dateRange.get._2 format ISO_INSTANT)
     }
 
-    val json = withRetries { execute(getProducts) }
+    val json = execute(getProducts)
     val resultCollection = FeatureCollection.parse(json, isUTM, dedup = true)
     if(dateRange.isDefined) {
       val dates = dateRange.get
@@ -108,7 +108,7 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
       .option(HttpOptions.followRedirects(true))
       .param("clientId", clientId(correlationId))
 
-    val json = withRetries { execute(getCollections) }
+    val json = execute(getCollections)
     FeatureCollection.parse(json, dedup=false).features
   }
 

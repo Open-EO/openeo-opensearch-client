@@ -78,7 +78,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       getProducts = getProducts.param("productType","GRD")
     }
 
-    val json = withRetries { execute(getProducts) }
+    val json = execute(getProducts)
     CreoFeatureCollection.parse(json, dedup = true)
   }
 
@@ -86,7 +86,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
     val getCollections = http(collections)
       .option(HttpOptions.followRedirects(true))
 
-    val json = withRetries { execute(getCollections) }
+    val json = execute(getCollections)
     CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null,None))
   }
 }

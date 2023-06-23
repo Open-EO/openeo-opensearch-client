@@ -132,9 +132,12 @@ abstract class OpenSearchClient {
 
   protected def execute(request: HttpRequest): String = {
     val url = request.urlBuilder(request)
-    val response = request
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 100000)
-      .asString
+
+    val response = withRetries{
+      request
+        .timeout(connTimeoutMs = 10000, readTimeoutMs = 100000)
+        .asString
+    }
 
     logger.info(s"$url returned ${response.code}")
     if(response.isError) {
