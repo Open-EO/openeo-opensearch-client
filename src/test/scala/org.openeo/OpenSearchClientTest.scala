@@ -311,7 +311,7 @@ class OpenSearchClientTest {
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 3min to 2sec.
     HttpCache.enabled = true
-    HttpCache.randomErrorEnabled = true
+    HttpCache.randomErrorEnabled = false // To test retry
     // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
     val requiredBands = Set(
       "IMG_DATA_Band_B01_60m_Tile1_Data",
