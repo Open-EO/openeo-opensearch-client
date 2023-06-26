@@ -24,11 +24,11 @@ import scala.util.Using
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
     //    arguments(LocalDate.parse("2015-11-23"), new java.lang.Double(2.00)), // No products with this processingBaseline found
-    arguments(LocalDate.parse("2015-12-15"), new java.lang.Double(2.01)),
+    arguments(LocalDate.parse("2015-12-23"), new java.lang.Double(2.01)), // tweaked date
     arguments(LocalDate.parse("2016-05-03"), new java.lang.Double(2.02)),
     //    arguments(LocalDate.parse("2016-06-09"), new java.lang.Double(2.03)), // No products with this processingBaseline found
     arguments(LocalDate.parse("2016-06-15"), new java.lang.Double(2.04)),
-    arguments(LocalDate.parse("2017-04-27"), new java.lang.Double(2.05)),
+    arguments(LocalDate.parse("2017-05-03"), new java.lang.Double(2.05)), // tweaked date
     arguments(LocalDate.parse("2017-10-23"), new java.lang.Double(2.06)),
     arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.07)),
     arguments(LocalDate.parse("2019-07-08"), new java.lang.Double(2.08)),
@@ -54,19 +54,26 @@ object OpenSearchClientTest {
     arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
     arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
     arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
+
+    // Undocumented. Manually added. Will dedup a product with same processingBaseline,
+    // but with a cornet cut of slightly differently:
+    // arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(5.0)),
   ))
 }
 
 class OpenSearchClientTest {
 
   private var httpsCacheEnabledOriginalValue = false
+  private var httpsCacherandomErrorEnabledOriginalValue = false
 
   @BeforeEach def beforeEach(): Unit = {
     httpsCacheEnabledOriginalValue = HttpCache.enabled
+    httpsCacherandomErrorEnabledOriginalValue = HttpCache.randomErrorEnabled
   }
 
   @AfterEach def afterEach(): Unit = {
     HttpCache.enabled = httpsCacheEnabledOriginalValue
+    HttpCache.randomErrorEnabled = httpsCacherandomErrorEnabledOriginalValue
   }
 
   @Test
@@ -304,6 +311,7 @@ class OpenSearchClientTest {
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
     // Cache reduces test time from 3min to 2sec.
     HttpCache.enabled = true
+    HttpCache.randomErrorEnabled = true
     // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L2A")]..["eo:bands"][?(@.aliases)].aliases
     val requiredBands = Set(
       "IMG_DATA_Band_B01_60m_Tile1_Data",
@@ -376,7 +384,7 @@ class OpenSearchClientTest {
     val extentTAP4326 = Extent(5.07, 51.215, 5.08, 51.22)
     val features = new CreodiasClient().getProducts(
       collectionId = "Sentinel2",
-      Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(15).atStartOfDay(UTC))),
+      Some(Tuple2(date.atStartOfDay(UTC), date.plusDays(6).atStartOfDay(UTC))),
       ProjectedExtent(extentTAP4326, LatLng),
       Map(
         "productType" -> productType,
@@ -389,8 +397,9 @@ class OpenSearchClientTest {
     for (feature <- features) {
       // Checking bands for all features:
       val foundBands = feature.links.map(_.title.get).toSet
+        .filter(l => !l.contains("Mask_") && !l.contains("_InformationData")) // filter for nicer debugging
       val intersect = requiredBands.intersect(foundBands)
-      assertEquals(requiredBands, intersect)
+      assertEquals(requiredBands.mkString("\n"), intersect.mkString("\n"))
     }
     // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
     // This is the product we are actually interested in.

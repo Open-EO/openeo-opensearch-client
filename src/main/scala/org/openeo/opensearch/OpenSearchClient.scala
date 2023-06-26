@@ -4,17 +4,14 @@ import geotrellis.vector.ProjectedExtent
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
-import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
+import scalaj.http.{Http, HttpOptions, HttpRequest}
 
 import java.io.IOException
-import java.net.{SocketTimeoutException, URL}
+import java.net.URL
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, OffsetTime, ZonedDateTime}
 import java.util
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
-import scala.annotation.tailrec
 import scala.collection.Map
 
 /**
@@ -133,9 +130,9 @@ abstract class OpenSearchClient {
   protected def execute(request: HttpRequest): String = {
     val url = request.urlBuilder(request)
 
-    val response = withRetries{
+    val response = withRetries {
       request
-        .timeout(connTimeoutMs = 10000, readTimeoutMs = 100000)
+        .timeout(connTimeoutMs = 10000, readTimeoutMs = 5 * 60 * 1000) // 5min, as catalogue API can be realy slow
         .asString
     }
 

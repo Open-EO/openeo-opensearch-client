@@ -12,7 +12,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
    */
   def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
 
-  override def openConnection(url: URL): java.net.URLConnection =
+  override def openConnection(url: URL): java.net.URLConnection = {
     if (!HttpCache.enabled) {
       openConnectionSuper(url)
     } else if (url.toString.contains(".tif")) {
@@ -20,7 +20,9 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
       openConnectionSuper(url)
     } else
       new java.net.HttpURLConnection(url) {
-        private lazy val inputStream = {
+        private var inputStream: Option[InputStream] = None
+
+        private def makeInputStream: InputStream = {
           val fullUrl = this.url.toString
           val idx = fullUrl.indexOf("//")
           var filePath = fullUrl.substring(idx + 2)
@@ -69,7 +71,21 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           }
         }
 
-        override def getInputStream: InputStream = inputStream
+        override def getInputStream: InputStream = {
+          if (inputStream.isEmpty) {
+            if (HttpCache.randomErrorEnabled && HttpCache.random.nextDouble() < 0.3
+              && url.toString.contains("catalogue.dataspace.copernicus.eu")) {
+              println("Intentional random error for: " + url)
+              // Just like in sun/net/www/protocol/http/HttpURLConnection.java:1900
+              val respCode = 500
+              throw new java.io.IOException("Server returned HTTP" +
+                " response code: " + respCode + " for URL: " +
+                url.toString)
+            }
+            inputStream = Some(makeInputStream)
+          }
+          inputStream.get
+        }
 
         override def connect(): Unit = {}
 
@@ -77,10 +93,14 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
 
         override def usingProxy(): Boolean = ???
       }
+  }
 }
 
 object HttpCache {
   var enabled = false
+
+  var randomErrorEnabled = false
+  private val random = new scala.util.Random
 
   val httpsCache = new HttpCache()
   // This method can be called at most once in a given Java Virtual Machine:
