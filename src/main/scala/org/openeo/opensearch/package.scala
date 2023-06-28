@@ -28,9 +28,9 @@ package object opensearch {
         case e: IOException if e.getMessage.endsWith("returned an empty body") =>
           logger.warn(s"encountered empty body: retrying within $amount $timeUnit", e)
           true
-        case e: IOException if e.getMessage.contains("catalogue.dataspace.copernicus.eu")
-          && e.getMessage.contains("response code: ") => // Mostly error code 500, but keeping it open just in case.
-          logger.warn(s"Errors for this API can be retried $amount $timeUnit", e)
+        case e: IOException if e.getMessage.contains("catalogue.dataspace.copernicus.eu") =>
+          // Mostly error code 500, but keeping it open just in case.
+          logger.warn(s"Errors for this API can be retried: retrying within $amount $timeUnit", e)
           true
         case _: SocketTimeoutException =>
           logger.warn(s"socket timeout exception: retrying within $amount $timeUnit")

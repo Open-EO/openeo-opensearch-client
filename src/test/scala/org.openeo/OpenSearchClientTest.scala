@@ -54,10 +54,7 @@ object OpenSearchClientTest {
     arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
     arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
     arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
-
-    // Undocumented. Manually added. Will dedup a product with same processingBaseline,
-    // but with a cornet cut of slightly differently:
-    // arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(5.0)),
+    arguments(LocalDate.parse("2021-10-19"), new java.lang.Double(5.0)), // Undocumented. Manually added
   ))
 }
 
@@ -301,7 +298,7 @@ class OpenSearchClientTest {
         try in.mkString.trim
         finally in.close()
       }
-      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fully supported yet.
       XML.loadString(str) // Test if XML is parsable
     }
   }
@@ -345,7 +342,7 @@ class OpenSearchClientTest {
         try in.mkString.trim
         finally in.close()
       }
-      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fullty supported yet.
+      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fully supported yet.
       XML.loadString(str) // Test if XML is parsable
     }
   }
