@@ -378,7 +378,13 @@ object OpenSearchResponses {
                   s"bucket: EODATA, " +
                   s"key: ${key}"
                 )
-                logger.warn("Error reading from S3 Exception:" + e.getMessage + "     stack: " + e.getStackTraceString)
+                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTraceString
+                var cause = e.getCause
+                while (cause != null) {
+                  msgStr += "\n Cause: " + cause + "   " + cause.getMessage
+                  cause = e.getCause
+                }
+                logger.warn(msgStr)
                 throw e
             }
           } else {
