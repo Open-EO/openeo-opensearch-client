@@ -343,14 +343,19 @@ object OpenSearchResponses {
       "TRUE".equals(getenv("AWS_DIRECT"))
     }
 
+    /**
+     * Can return null!
+     * @param pathArg
+     * @return
+     */
     def loadMetadata(pathArg:String):InputStream = withRetries {
       val path = pathArg.replace("/vsis3/", "/")
       var gdalPrefix = ""
-      val inputStream = if (path.startsWith("https://")) {
+      if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
 
         val uri = new URI(path)
-        return uri.resolve(uri.getPath).toURL
+        uri.resolve(uri.getPath).toURL
           .openConnection.asInstanceOf[java.net.HttpURLConnection]
           .getInputStream
       } else {
@@ -362,16 +367,16 @@ object OpenSearchResponses {
           if (creoClient.isDefined) {
             val key = path.replace("/eodata/", "")
             try {
-              return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
+              creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
             } catch {
 
-              case e: NoSuchKeyException =>
+              case _: NoSuchKeyException =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
                   s"bucket: EODATA, NoSuchKeyException, " +
                   s"key: ${key}"
                 )
-                return null
+                null
               case e: Throwable =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
@@ -391,18 +396,16 @@ object OpenSearchResponses {
             val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
             try {
-              return uri.resolve(uri.toString).toURL
+              uri.resolve(uri.toString).toURL
                 .openConnection.getInputStream
             } catch {
-              case e: FileNotFoundException => return null
+              case _: FileNotFoundException => null
             }
           }
-
         } else {
-          return new FileInputStream(Paths.get(path).toFile)
+          new FileInputStream(Paths.get(path).toFile)
         }
       }
-      return inputStream
     }
 
     private def getGDALPrefix(path:String) = {
