@@ -368,7 +368,7 @@ object OpenSearchResponses {
               case e: NoSuchKeyException =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
-                  s"bucket: EODATA, " +
+                  s"bucket: EODATA, NoSuchKeyException, " +
                   s"key: ${key}"
                 )
                 return null
