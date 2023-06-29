@@ -127,14 +127,12 @@ abstract class OpenSearchClient {
     }
   }
 
-  protected def execute(request: HttpRequest): String = {
+  protected def execute(request: HttpRequest): String = withRetries {
     val url = request.urlBuilder(request)
 
-    val response = withRetries {
-      request
-        .timeout(connTimeoutMs = 10000, readTimeoutMs = 5 * 60 * 1000) // 5min, as catalogue API can be realy slow
-        .asString
-    }
+    val response = request
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 5 * 60 * 1000) // 5min, as catalogue API can be realy slow
+      .asString
 
     logger.info(s"$url returned ${response.code}")
     if(response.isError) {

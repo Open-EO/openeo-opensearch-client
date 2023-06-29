@@ -52,7 +52,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("maxRecords", "100")
       .param("status", "0|34|37")
       .param("dataset", "ESA-DATASET")
-      .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
+      .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline").contains(_)).toSeq)
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
@@ -76,6 +76,20 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
     if( "Sentinel1".equals(collectionId)) {
       getProducts = getProducts.param("productType","GRD")
+    }
+
+    /*
+      // HACK: Putting pb as latest filter changes request time from 1.5min to 20sec.
+      // Used this JS snippet to debug it:
+      let urlSlow = new URL("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=5.069685009564397%2C51.21481793134414%2C5.08036486094712%2C51.22021524164683&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&processingBaseline=2.07&productType=L1C&startDate=2018-11-06T00%3A00%3A00Z&completionDate=2018-11-12T23%3A59%3A59.999999999Z")
+      //let url = window.location
+      let str = `val request = http("${url.toString().replace(url.search, "")}")\n`
+      url.searchParams.forEach((value,key)=>str+=`  .param("${key}", "${value}")\n`)
+      console.log(str)
+     */
+    val processingBaseline = attributeValues.get("processingBaseline")
+    if (processingBaseline.isDefined) {
+      getProducts = getProducts.param("processingBaseline", processingBaseline.get.toString)
     }
 
     val json = execute(getProducts)
