@@ -4,7 +4,7 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.Ignore
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test}
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
@@ -169,6 +169,7 @@ class OpenSearchClientTest {
    * c-scale stac catalog is not stable
    */
   @Ignore
+  @Disabled
   @Test
   def testSTACGetProductsCScale(): Unit = {
     val openSearch = OpenSearchClient(new URL("https://resto.c-scale.zcu.cz/"))
@@ -191,6 +192,7 @@ class OpenSearchClientTest {
   }
 
   @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
+  @Disabled
   @Test
   def testCreoGetCollections(): Unit = {
     checkGetCollections(new CreodiasClient())
