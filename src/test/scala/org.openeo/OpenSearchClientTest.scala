@@ -56,6 +56,11 @@ object OpenSearchClientTest {
     arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
     arguments(LocalDate.parse("2021-10-19"), new java.lang.Double(5.0)), // Undocumented. Manually added
   ))
+
+  def demExtents: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
+    arguments(ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng)),
+    arguments(ProjectedExtent(Extent(1.877486326846265, 50.00259421316291, 1.8797962194548734, 50.00408246028524), LatLng)), // from croptype
+  ))
 }
 
 class OpenSearchClientTest {
@@ -127,13 +132,21 @@ class OpenSearchClientTest {
   }
 
   @Test
-  def testCreoGetProductsDEM(): Unit = {
+  def extentLatLngExtentToAtLeast1x1Test(): Unit = {
+    assertEquals(Extent(0.0, 0.0, 1.0, 1.0), CreodiasClient.extentLatLngExtentToAtLeast1x1(Extent(0, 0, 0.001, 0.001)))
+    assertEquals(Extent(179, 89, 180, 90), CreodiasClient.extentLatLngExtentToAtLeast1x1(Extent(180 - 0.001, 90 - 0.001, 180, 90)))
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("demExtents"))
+  def testCreoGetProductsDEM(extent: ProjectedExtent): Unit = {
+    HttpCache.enabled = true
     val openSearch = new CreodiasClient()
 
     val features = openSearch.getProducts(
       collectionId = "CopDem",
       (LocalDate.of(2009, 10, 1), LocalDate.of(2020, 10, 5)),
-      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
+      extent,
       Map[String, Any]("productType"->"DGE_30", "resolution"->30), correlationId = "hello", ""
     )
 
@@ -146,7 +159,6 @@ class OpenSearchClientTest {
     assertTrue(band02.nonEmpty)
     val location = band02(0).href.toString
     assertTrue(location.endsWith("DEM.tif"))
-
   }
 
   @Test

@@ -14,9 +14,25 @@ import scala.collection.Map
 object CreodiasClient{
 
   def apply(): CreodiasClient = {new CreodiasClient()}
+
+  def extentLatLngExtentToAtLeast1x1(extent: Extent): Extent = {
+    val worldExtent = Extent(-180.0, -90.0, 180.0, 90.0)
+    var extentReturn = extent
+    extentReturn = extentReturn
+      .copy(xmax = Math.min(Math.max(extentReturn.xmin + 1, extentReturn.xmax), worldExtent.xmax))
+      .copy(ymax = Math.min(Math.max(extentReturn.ymin + 1, extentReturn.ymax), worldExtent.ymax))
+
+    // For max touched a world border, try extending the min
+    extentReturn = extentReturn
+      .copy(xmin = Math.max(Math.min(extentReturn.xmax - 1, extentReturn.xmin), worldExtent.xmin))
+      .copy(ymin = Math.max(Math.min(extentReturn.ymax - 1, extentReturn.ymin), worldExtent.ymin))
+    extentReturn
+  }
 }
 
 class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto")) extends OpenSearchClient {
+  import CreodiasClient._
+
   private val collections = s"${endpoint.toString}/collections.json"
   private def collection(collectionId: String) = s"${endpoint.toString}/api/collections/$collectionId/search.json"
 
@@ -42,7 +58,12 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                                      bbox: ProjectedExtent,
                                      attributeValues: Map[String, Any], correlationId: String,
                                      processingLevel: String, page: Int): FeatureCollection = {
-    val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
+    var bboxReprojected = bbox.reproject(LatLng)
+    if (attributeValues.get("resolution").contains(30) && attributeValues.get("productType").contains("DGE_30")) {
+      // Otherwise catalogue.dataspace.copernicus.eu might return a 504 error
+      bboxReprojected = extentLatLngExtentToAtLeast1x1(bboxReprojected)
+    }
+    val Extent(xMin, yMin, xMax, yMax) = bboxReprojected
 
     var getProducts = http(collection(collectionId))
       .param("box", Array(xMin, yMin, xMax, yMax) mkString ",")
