@@ -69,7 +69,8 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
+                  bandNames: Option[Seq[String]] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
