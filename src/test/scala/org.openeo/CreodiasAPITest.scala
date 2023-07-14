@@ -2,7 +2,7 @@ package org.openeo
 
 import geotrellis.proj4.CRS
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.junit.Test
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 import org.openeo.opensearch.backends.CreodiasClient
 
 import java.time.ZoneOffset.UTC
@@ -11,8 +11,19 @@ import scala.collection.Map
 
 class CreodiasAPITest {
 
+  private var httpsCacheEnabledOriginalValue = false
+
+  @BeforeEach def beforeEach(): Unit = {
+    httpsCacheEnabledOriginalValue = HttpCache.enabled
+  }
+
+  @AfterEach def afterEach(): Unit = {
+    HttpCache.enabled = httpsCacheEnabledOriginalValue
+  }
+
   @Test
   def testCreoGeometry(): Unit = {
+    HttpCache.enabled = true
     /*
     The old Creodias API can sometimes return MultiPolygon geometry that is not correctly formatted.
     */

@@ -4,17 +4,14 @@ import geotrellis.vector.ProjectedExtent
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
-import scalaj.http.{Http, HttpOptions, HttpRequest, HttpStatusException}
+import scalaj.http.{Http, HttpOptions, HttpRequest}
 
 import java.io.IOException
-import java.net.{SocketTimeoutException, URL}
+import java.net.URL
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, OffsetTime, ZonedDateTime}
 import java.util
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicLong
-import scala.annotation.tailrec
 import scala.collection.Map
 
 /**
@@ -130,21 +127,24 @@ abstract class OpenSearchClient {
     }
   }
 
-  protected def execute(request: HttpRequest): String = {
+  protected def execute(request: HttpRequest): String = withRetries {
     val url = request.urlBuilder(request)
-    val response = request.asString
+
+    val response = request
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 5 * 60 * 1000) // 5min, as catalogue API can be realy slow
+      .asString
 
     logger.info(s"$url returned ${response.code}")
     if(response.isError) {
       if(response.contentType.contains("application/json") || response.contentType.contains("application/geo+json;charset=UTF-8")) {
         io.circe.parser.parse(response.body) match {
-          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: $response.body")
+          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: ${response.body}")
           case Right(json) => throw new IOException(s"Exception while evaluating catalog request $url: ${json.findAllByKey("exceptionText").mkString(";")} ")
         }
 
         throw new IOException(s"$url returned an empty body")
       }else{
-        throw new IOException(s"Exception while evaluating catalog request $url: $response.body")
+        throw new IOException(s"Exception while evaluating catalog request $url: ${response.body}")
 
       }
     }else{
@@ -155,36 +155,5 @@ abstract class OpenSearchClient {
       }
       json
     }
-
-
-  }
-
-  protected def withRetries[R](action: => R): R = {
-    @tailrec
-    def attempt[R](retries: Int, delay: (Long, TimeUnit))(action: => R): R = {
-      val (amount, timeUnit) = delay
-
-      def retryable(e: Exception): Boolean = retries > 0 && (e match {
-        case h: HttpStatusException if h.code >= 500 => true
-        case e: IOException if e.getMessage.endsWith("returned an empty body") =>
-          logger.warn(s"encountered empty body: retrying within $amount $timeUnit", e)
-          true
-        case _: SocketTimeoutException =>
-          logger.warn(s"socket timeout exception: retrying within $amount $timeUnit")
-          true
-        case _ => false
-      })
-
-      try
-        return action
-      catch {
-        case e: Exception if retryable(e) => Unit
-      }
-
-      timeUnit.sleep(amount)
-      attempt(retries - 1, (amount * 2, timeUnit)) { action }
-    }
-
-    attempt(retries = 4, delay = (5, SECONDS)) { action }
   }
 }

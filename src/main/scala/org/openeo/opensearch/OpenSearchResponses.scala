@@ -46,6 +46,10 @@ object OpenSearchResponses {
    * @return
    */
   def sentinel2Reformat(title: String, href:String): String = {
+    if (title == "S2_Level-2A_Tile1_Data" && href.contains("L2A")) {
+      // logic for processingBaseline 2.07 and 99.99
+      return "S2_Level-2A_Tile1_Metadata"
+    }
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
     val patternHref:Regex = """.*_(B.._\d{2}m).jp2""".r
@@ -65,22 +69,27 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String])
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
    * Properties that need some processing are better parsed in the apply functions.
    */
   case class GeneralProperties(published: Option[ZonedDateTime], orbitNumber: Option[Int],
-                               organisationName: Option[String], instrument: Option[String]) {
-    def this() = this(None, None, None, None)
+                               organisationName: Option[String], instrument: Option[String],
+                               processingBaseline: Option[Double]) {
+    def this() = this(None, None, None, None, None)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-                     var pixelValueOffset:Double = 0,
-                     ){
+                     var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
+                    ) {
+    if (pixelValueOffset != 0.0) {
+      // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
+      throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
+    }
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -101,7 +110,6 @@ object OpenSearchResponses {
     // If orbitNumber or organisationName is None it works out too
     if (f1.generalProperties.orbitNumber != f2.generalProperties.orbitNumber) return false
     if (f1.generalProperties.instrument != f2.generalProperties.instrument) return false
-    if (f1.generalProperties.organisationName != f2.generalProperties.organisationName) return false
     if (f1.resolution.isDefined && f2.resolution.isDefined
       && f1.resolution.get != 0 && f2.resolution.get != 0) {
       if (f1.resolution != f2.resolution) return false
@@ -121,6 +129,16 @@ object OpenSearchResponses {
     }
 
     true
+  }
+
+  /**
+   * Removes features/products that contain references to PHOEBUS-core files.
+   * Those occur often in processing baseline 2.08 products.
+   */
+  private def removePhoebusFeatures(features: Array[Feature]): Array[Feature] = {
+    features.filter(f => !f.links.exists(
+      l => l.href.toString.contains("/PHOEBUS-core/") && l.href.toString.contains("//")
+    ))
   }
 
   /**
@@ -237,7 +255,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -286,7 +304,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -325,14 +343,20 @@ object OpenSearchResponses {
       "TRUE".equals(getenv("AWS_DIRECT"))
     }
 
-    def loadMetadata(path:String, metadatafile:String):InputStream = {
+    /**
+     * Can return null!
+     * @param pathArg
+     * @return
+     */
+    def loadMetadata(pathArg:String):InputStream = withRetries {
+      val path = pathArg.replace("/vsis3/", "/")
       var gdalPrefix = ""
-      val inputStream = if (path.startsWith("https://")) {
+      if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
 
         val uri = new URI(path)
-        return uri.resolve(s"${uri.getPath}/${metadatafile}").toURL
-          .openConnection.asInstanceOf[HttpsURLConnection]
+        uri.resolve(uri.getPath).toURL
+          .openConnection.asInstanceOf[java.net.HttpURLConnection]
           .getInputStream
       } else {
         gdalPrefix = if (getAwsDirect()) "/vsis3" else ""
@@ -341,42 +365,47 @@ object OpenSearchResponses {
 
           //reading from /eodata is extremely slow
           if (creoClient.isDefined) {
-            val key = s"${path.toString.replace("/eodata/", "")}/${metadatafile}"
+            val key = path.replace("/eodata/", "")
             try {
-              return creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
+              creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
             } catch {
 
-              case e: NoSuchKeyException =>
+              case _: NoSuchKeyException =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
-                  s"bucket: EODATA, " +
+                  s"bucket: EODATA, NoSuchKeyException, " +
                   s"key: ${key}"
                 )
-                return null
+                null
               case e: Throwable =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
                   s"bucket: EODATA, " +
                   s"key: ${key}"
                 )
+                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTraceString
+                var cause = e.getCause
+                while (cause != null) {
+                  msgStr += "\n Cause: " + cause + "   " + cause.getMessage
+                  cause = e.getCause
+                }
+                logger.warn(msgStr)
                 throw e
             }
           } else {
             val url = path.replace("/eodata", "https://zipper.creodias.eu/get-object?path=")
             val uri = new URI(url)
             try {
-              return uri.resolve(s"${uri.toString}/$metadatafile").toURL
+              uri.resolve(uri.toString).toURL
                 .openConnection.getInputStream
             } catch {
-              case e: FileNotFoundException => return null
+              case _: FileNotFoundException => null
             }
           }
-
         } else {
-          return new FileInputStream(Paths.get(path, metadatafile).toFile)
+          new FileInputStream(Paths.get(path).toFile)
         }
       }
-      return inputStream
     }
 
     private def getGDALPrefix(path:String) = {
@@ -392,18 +421,119 @@ object OpenSearchResponses {
     private def getFilePathsFromManifest(path: String): Seq[Link] = {
 
       val gdalPrefix: String = getGDALPrefix(path)
-      val inputStream: InputStream = loadMetadata(path,"manifest.safe")
+      val inputStream: InputStream = loadMetadata(Paths.get(path, "manifest.safe").toString)
       if(inputStream == null) {
         return Seq.empty[Link]
       }
       val xml = XML.load(inputStream)
 
-      (xml \\ "dataObject" )
+      var links = (xml \\ "dataObject" )
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
-        })
+          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
+      })
+
+      // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
+      val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
+      metadataUrl match {
+        case Some(link) =>
+          val inputStreamMTD: InputStream = loadMetadata(link.href.toString) // eg: MTD_MSIL2A.xml
+          if (inputStreamMTD != null) {
+            try {
+              val xmlMTD = XML.load(inputStreamMTD)
+
+              def extractNodeText(node: Node) =
+                node.child.filter(_.isInstanceOf[scala.xml.Text]).map(_.text).mkString("")
+
+              var offsetNodes = xmlMTD \\ "Radiometric_Offset_List" \\ "RADIO_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                if (offsetNodes.length != 13) {
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
+                }
+                val idToBandList = List(
+                  "IMG_DATA_Band_60m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_1_Tile1_Data",
+                  "IMG_DATA_Band_10m_2_Tile1_Data",
+                  "IMG_DATA_Band_10m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_1_Tile1_Data",
+                  "IMG_DATA_Band_20m_2_Tile1_Data",
+                  "IMG_DATA_Band_20m_3_Tile1_Data",
+                  "IMG_DATA_Band_10m_4_Tile1_Data",
+                  "IMG_DATA_Band_20m_4_Tile1_Data",
+                  "IMG_DATA_Band_60m_2_Tile1_Data",
+                  "IMG_DATA_Band_60m_3_Tile1_Data",
+                  "IMG_DATA_Band_20m_5_Tile1_Data",
+                  "IMG_DATA_Band_20m_6_Tile1_Data",
+                  "IMG_DATA_Band_TCI_Tile1_Data",
+                )
+
+                links = links.map(l => {
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
+                  } else l
+                })
+              }
+
+
+              offsetNodes = xmlMTD \\ "BOA_ADD_OFFSET_VALUES_LIST" \\ "BOA_ADD_OFFSET"
+              if (offsetNodes.length > 0) {
+                if (offsetNodes.length != 13) {
+                  // Did not find documentation for the mapping between band_ids and band names.
+                  logger.warn("Unexpected amount of bands. Best to verify pixel value offset.")
+                }
+                val idToBandList = List(
+                  "IMG_DATA_Band_B01_60m_Tile1_Data",
+                  "IMG_DATA_Band_B02_10m_Tile1_Data",
+                  "IMG_DATA_Band_B03_10m_Tile1_Data",
+                  "IMG_DATA_Band_B04_10m_Tile1_Data",
+                  "IMG_DATA_Band_B05_20m_Tile1_Data",
+                  "IMG_DATA_Band_B06_20m_Tile1_Data",
+                  "IMG_DATA_Band_B07_20m_Tile1_Data",
+                  "IMG_DATA_Band_B08_10m_Tile1_Data",
+                  "IMG_DATA_Band_B8A_20m_Tile1_Data",
+                  "IMG_DATA_Band_B09_60m_Tile1_Data",
+                  "IMG_DATA_Band_B10_60m_Tile1_Data", // Never occurs, but needed to have 13 bands. TODO: Verify on staging.
+                  "IMG_DATA_Band_B11_20m_Tile1_Data",
+                  "IMG_DATA_Band_B12_20m_Tile1_Data",
+                  "IMG_DATA_Band_TCI_10m_Tile1_Data",
+                  "IMG_DATA_Band_WVP_10m_Tile1_Data",
+                  "IMG_DATA_Band_AOT_20m_Tile1_Data",
+                  "IMG_DATA_Band_SCL_20m_Tile1_Data",
+                )
+
+                links = links.map(l => {
+                  if (l.title.isDefined && idToBandList.contains(l.title.get)) {
+                    val bandId = idToBandList.indexOf(l.title.get)
+                    offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
+                      case Some(node) =>
+                        val innerText = extractNodeText(node)
+                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                      case _ => l
+                    }
+                  } else l
+                })
+              }
+            } catch {
+              // This occured in mocked automatic tests. I did not see it on the real data yet.
+              case e: Throwable => logger.warn("Failed to load " + link.href.toString +
+                ". Error: " + e.getMessage)
+            } finally {
+              inputStreamMTD.close()
+            }
+          }
+        case _ =>
+      }
+
+      links
     }
 
     /**
@@ -413,7 +543,7 @@ object OpenSearchResponses {
      */
     private def getDEMPathFromInspire(path: String): Seq[Link] = {
       val gdalPrefix: String = getGDALPrefix(path)
-      val inputStream: InputStream = loadMetadata(path, "INSPIRE.xml")
+      val inputStream: InputStream = loadMetadata(Paths.get(path, "INSPIRE.xml").toString)
       if(inputStream == null) {
         return Seq.empty[Link]
       }
@@ -474,22 +604,14 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            val processingBaseline:Double = c.downField("properties").downField("processingBaseline").as[Double].getOrElse(0)
-            // 99.99 seems like a value we should ignore
-            // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
-            if(processingBaseline == 99.99){
-              println("processingBaseline == 99.99")
-            }
-            val pixelValueOffset: Double = if (processingBaseline >= 04.00 && processingBaseline != 99.99) -1000 else 0
-
             if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
             }else if(id.contains("COP-DEM_GLO-30-DGED")){
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties, pixelValueOffset = pixelValueOffset)
+              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
             }
           }
         }
@@ -503,7 +625,7 @@ object OpenSearchResponses {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(features) else features
+            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
