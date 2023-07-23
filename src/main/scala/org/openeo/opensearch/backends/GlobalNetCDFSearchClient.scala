@@ -49,7 +49,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
       val to = dateRange.get._2
       sortedDates = sortedDates
         .dropWhile { case (date, _) => date isBefore from }
-        .takeWhile { case (date, _) => !(date isAfter to) }
+        .takeWhile { case (date, _) => (date isBefore to) || (date isEqual from) }
     }
 
     if(gridExtent.isEmpty) {
