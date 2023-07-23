@@ -71,7 +71,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("sortOrder", "ascending")
       .param("page", page.toString)
       .param("maxRecords", "100")
-      .param("status", "0|34|37")
+      .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline").contains(_)).toSeq)
 
