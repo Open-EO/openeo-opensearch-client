@@ -8,13 +8,12 @@ import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test}
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
-import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 
-import java.net.URL
+import java.net.{URI, URL}
 import java.time.ZoneOffset.UTC
-import java.time.{LocalDate, ZonedDateTime}
+import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
@@ -82,9 +81,10 @@ class OpenSearchClientTest {
   def testOscarsGetProducts(): Unit = {
     val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
 
+    val endDate = LocalDate.of(2020, 1, 1)
     val features = openSearch.getProducts(
       collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
-      (LocalDate.of(2019, 10, 3), LocalDate.of(2020, 1, 2)),
+      (LocalDate.of(2019, 10, 3), endDate),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any]("eo:cloud_cover"->50.0,"resolution"->10), "hello", ""
       )
@@ -92,6 +92,9 @@ class OpenSearchClientTest {
     println(s"got ${features.size} features")
     assertTrue(features.size<160)
     assertTrue(features.nonEmpty)
+    val maxDate = features.map(_.nominalDate).max
+    assertTrue(maxDate.isBefore(endDate.atStartOfDay(ZoneId.of("UTC"))))
+
   }
 
   @Test

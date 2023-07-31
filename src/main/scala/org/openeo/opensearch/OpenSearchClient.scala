@@ -9,7 +9,7 @@ import scalaj.http.{Http, HttpOptions, HttpRequest}
 import java.io.IOException
 import java.net.URL
 import java.time.ZoneOffset.UTC
-import java.time.{LocalDate, OffsetTime, ZonedDateTime}
+import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.Map
@@ -83,11 +83,9 @@ abstract class OpenSearchClient {
                   bbox: ProjectedExtent,
                   attributeValues: Map[String, Any], correlationId: String,
                   processingLevel: String): Seq[Feature] = {
-    // Convert LocalDates to ZonedDateTime.
-    val endOfDay = OffsetTime.of(23, 59, 59, 999999999, UTC)
 
     val start = dateRange._1.atStartOfDay(UTC)
-    val end = dateRange._2.atTime(endOfDay).toZonedDateTime
+    val end = dateRange._2.atStartOfDay(UTC)
 
     getProducts(collectionId, Some((start, end)), bbox, attributeValues, correlationId = correlationId, processingLevel)
   }
