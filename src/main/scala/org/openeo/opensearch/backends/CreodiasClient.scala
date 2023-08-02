@@ -96,10 +96,6 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         .param("completionDate", dateRange.get._2 format ISO_INSTANT)
     }
 
-    if( "Sentinel1".equals(collectionId)) {
-      getProducts = getProducts.param("productType","GRD")
-    }
-
     /*
       // HACK: Putting pb as latest filter changes request time from 1.5min to 20sec.
       // Used this JS snippet to debug it:
