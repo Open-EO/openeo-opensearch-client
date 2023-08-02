@@ -13,7 +13,7 @@ import java.time.{LocalDate, ZonedDateTime}
 import java.util.Locale
 import scala.collection.Map
 
-class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSearchClient {
+class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSearchClient {
 
   def getStartAndEndDate(collectionId: String, attributeValues: Map[String, Any] = Map()): Option[(LocalDate, LocalDate)] = {
     def getFirstProductWithSortKey(key: String) = {
@@ -54,8 +54,6 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     from(page = 1)
   }
 
-  val format = new DecimalFormat("0.#######", DecimalFormatSymbols.getInstance(Locale.ROOT))
-
   override protected def getProductsFromPage(collectionId: String,
                                      dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                                      bbox: ProjectedExtent,
@@ -66,9 +64,11 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
     val newAttributeValues = collection.mutable.Map(attributeValues.toSeq: _*)
     newAttributeValues.getOrElseUpdate("accessedFrom", "MEP") // get direct access links instead of download urls
 
+    val coordinateFormat = new DecimalFormat("0.#######", DecimalFormatSymbols.getInstance(Locale.ROOT))
+
     var getProducts = http(s"$endpoint/products")
       .param("collection", collectionId)
-      .param("bbox", Array(format.format(xMin), format.format(yMin), format.format(xMax), format.format(yMax)) mkString ",")
+      .param("bbox", Array(xMin, yMin, xMax, yMax).map(coordinateFormat.format) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
       .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
@@ -113,9 +113,12 @@ class OscarsClient(val endpoint: URL, val isUTM:Boolean = false) extends OpenSea
   }
 
   override def equals(other: Any): Boolean = other match {
-    case that: OscarsClient => this.endpoint == that.endpoint
+    case that: OscarsClient => this.endpoint == that.endpoint && this.isUTM == that.isUTM
     case _ => false
   }
 
-  override def hashCode(): Int = endpoint.hashCode()
+  override def hashCode(): Int = {
+    val state = Seq(endpoint, isUTM)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }

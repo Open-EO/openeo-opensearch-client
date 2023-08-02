@@ -24,6 +24,8 @@ import scala.collection.Map
 class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.element84.com/v0"),
                  private val s3URLS: Boolean = true) extends OpenSearchClient {
 
+  require(endpoint != null)
+
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                            bbox: ProjectedExtent,
@@ -80,12 +82,12 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
     STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, None))
   }
 
-  override def equals(other: Any): Boolean = other match {
+  override final def equals(other: Any): Boolean = other match {
     case that: STACClient => this.endpoint == that.endpoint && this.s3URLS == that.s3URLS
     case _ => false
   }
 
-  override def hashCode(): Int = {
+  override final def hashCode(): Int = {
     val state = Seq(endpoint, s3URLS)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
