@@ -6,9 +6,8 @@ import org.junit.jupiter.api.Test
 class CreodiasClientTest {
 
   @Test
-  def testSuitableAsCacheKey(): Unit = {
+  def testSuitableAsCacheKey(): Unit =
     EqualsVerifier.forClass(classOf[CreodiasClient])
       .withNonnullFields("endpoint")
       .verify()
-  }
 }

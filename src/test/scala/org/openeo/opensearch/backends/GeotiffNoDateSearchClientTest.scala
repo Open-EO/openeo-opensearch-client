@@ -6,10 +6,9 @@ import org.junit.jupiter.api.Test
 class GeotiffNoDateSearchClientTest {
 
   @Test
-  def testSuitableAsCacheKey(): Unit = {
+  def testSuitableAsCacheKey(): Unit =
     EqualsVerifier.forClass(classOf[GeotiffNoDateSearchClient])
       .withNonnullFields("dataGlob", "bands", "defaultDate")
       .withIgnoredFields("pathsCache")
       .verify()
-  }
 }

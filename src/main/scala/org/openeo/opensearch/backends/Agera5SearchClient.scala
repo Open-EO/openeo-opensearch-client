@@ -38,6 +38,11 @@ object Agera5SearchClient{
 class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker:String = "dewpoint-temperature" ) extends OpenSearchClient {
   import Agera5SearchClient._
 
+  require(dataGlob != null)
+  require(bands != null)
+  require(dateRegex != null)
+  require(bandMarker != null)
+
   protected def deriveDate(filename: String, date: Regex): ZonedDateTime = filename match {
     case date(year, month, day) => LocalDate.of(year.toInt, month.toInt, day.toInt).atStartOfDay(ZoneId.of("UTC"))
     case _ => {logger.warn(s"Agera5 products $filename failed to match regex: ${date.toString()}"); null}
@@ -119,7 +124,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
   }
 
 
-  override def equals(other: Any): Boolean = other match {
+  override final def equals(other: Any): Boolean = other match {
     case that: Agera5SearchClient =>
         this.dataGlob == that.dataGlob &&
         this.bands == that.bands &&
@@ -130,7 +135,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
     case _ => false
   }
 
-  override def hashCode(): Int = {
+  override final def hashCode(): Int = {
     // see remark in equals()
     val state = Seq(dataGlob, bands, dateRegex.pattern.pattern(), dateRegex.pattern.flags(), bandMarker)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)

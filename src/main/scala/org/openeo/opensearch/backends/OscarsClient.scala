@@ -14,6 +14,7 @@ import java.util.Locale
 import scala.collection.Map
 
 class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSearchClient {
+  require(endpoint != null)
 
   def getStartAndEndDate(collectionId: String, attributeValues: Map[String, Any] = Map()): Option[(LocalDate, LocalDate)] = {
     def getFirstProductWithSortKey(key: String) = {
@@ -112,12 +113,12 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
     FeatureCollection.parse(json, dedup=false).features
   }
 
-  override def equals(other: Any): Boolean = other match {
+  override final def equals(other: Any): Boolean = other match {
     case that: OscarsClient => this.endpoint == that.endpoint && this.isUTM == that.isUTM
     case _ => false
   }
 
-  override def hashCode(): Int = {
+  override final def hashCode(): Int = {
     val state = Seq(endpoint, isUTM)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }

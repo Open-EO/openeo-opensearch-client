@@ -6,7 +6,8 @@ import org.junit.jupiter.api.Test
 class STACClientTest {
 
   @Test
-  def testSuitableAsCacheKey(): Unit = EqualsVerifier.forClass(classOf[STACClient])
-    .withNonnullFields("endpoint")
-    .verify()
+  def testSuitableAsCacheKey(): Unit =
+    EqualsVerifier.forClass(classOf[STACClient])
+      .withNonnullFields("endpoint")
+      .verify()
 }
