@@ -33,7 +33,8 @@ object CreodiasClient{
 class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto")) extends OpenSearchClient {
   import CreodiasClient._
 
-  private val collections = s"${endpoint.toString}/collections.json"
+  require(endpoint != null)
+
   private def collection(collectionId: String) = s"${endpoint.toString}/api/collections/$collectionId/search.json"
 
   override def getProducts(collectionId: String,
@@ -71,7 +72,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("sortOrder", "ascending")
       .param("page", page.toString)
       .param("maxRecords", "100")
-      .param("status", "0|34|37")
+      .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline").contains(_)).toSeq)
 
@@ -95,10 +96,6 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         .param("completionDate", dateRange.get._2 format ISO_INSTANT)
     }
 
-    if( "Sentinel1".equals(collectionId)) {
-      getProducts = getProducts.param("productType","GRD")
-    }
-
     /*
       // HACK: Putting pb as latest filter changes request time from 1.5min to 20sec.
       // Used this JS snippet to debug it:
@@ -118,10 +115,21 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
   }
 
   override def getCollections(correlationId: String): Seq[Feature] = {
-    val getCollections = http(collections)
+    val getCollections = http(s"$endpoint/collections.json")
       .option(HttpOptions.followRedirects(true))
 
     val json = execute(getCollections)
     CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null,None))
+  }
+
+
+  override final def equals(other: Any): Boolean = other match {
+    case that: CreodiasClient => this.endpoint == that.endpoint
+    case _ => false
+  }
+
+  override final def hashCode(): Int = {
+    val state = Seq(endpoint)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

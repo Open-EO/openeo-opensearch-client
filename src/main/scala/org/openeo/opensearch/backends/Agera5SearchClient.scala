@@ -20,6 +20,8 @@ import scala.util.matching.Regex
 
 
 object Agera5SearchClient{
+  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String]): OpenSearchClient = {
     new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
 
@@ -34,9 +36,12 @@ object Agera5SearchClient{
 }
 
 class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker:String = "dewpoint-temperature" ) extends OpenSearchClient {
-  private val crs = LatLng
+  import Agera5SearchClient._
 
-  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  require(dataGlob != null)
+  require(bands != null)
+  require(dateRegex != null)
+  require(bandMarker != null)
 
   protected def deriveDate(filename: String, date: Regex): ZonedDateTime = filename match {
     case date(year, month, day) => LocalDate.of(year.toInt, month.toInt, day.toInt).atStartOfDay(ZoneId.of("UTC"))
@@ -53,6 +58,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
       .map(replacement => (dewPointTemperatureFile.replace(bandMarker, replacement), replacement))
   }
 
+  // TODO: move cache to the companion object?
   private val pathsCache = CacheBuilder
     .newBuilder()
     .expireAfterWrite(1, HOURS)
@@ -60,7 +66,8 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
       override def load(dataGlob: String): List[Path] =
         HdfsUtils.listFiles(new Path(s"file:$dataGlob"), new Configuration)
     })
-  protected def paths: List[Path] = pathsCache.get(dataGlob)
+
+  private def paths: List[Path] = pathsCache.get(dataGlob)
 
   // Note: All parameters except for dateRange are unused.
   override def getProducts(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String): Seq[OpenSearchResponses.Feature] = {
@@ -88,7 +95,8 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
 
     val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map{ case (date: ZonedDateTime, path: String, source: GeoTiffRasterSource) =>
       val links = getBandFiles(path).map { case (file, band) => Link(URI.create(s"""$file"""), Some(band)) }
-      OpenSearchResponses.Feature(s"${path}", source.extent, date, links.toArray, Some(source.gridExtent.cellSize.width), None,None, crs = Some(crs))
+      OpenSearchResponses.Feature(path, source.extent, date, links.toArray, Some(source.gridExtent.cellSize.width),
+        tileID = None, geometry = None, crs = Some(LatLng))
     }
 
     features.toSeq
@@ -113,5 +121,23 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
   override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
     val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
     OpenSearchResponses.FeatureCollection(products.length, products)
+  }
+
+
+  override final def equals(other: Any): Boolean = other match {
+    case that: Agera5SearchClient =>
+        this.dataGlob == that.dataGlob &&
+        this.bands == that.bands &&
+        // Scala Regex and underlying Java Pattern do not implement equals() and hashCode()
+        this.dateRegex.pattern.pattern() == that.dateRegex.pattern.pattern() &&
+        this.dateRegex.pattern.flags() == that.dateRegex.pattern.flags() &&
+        this.bandMarker == that.bandMarker
+    case _ => false
+  }
+
+  override final def hashCode(): Int = {
+    // see remark in equals()
+    val state = Seq(dataGlob, bands, dateRegex.pattern.pattern(), dateRegex.pattern.flags(), bandMarker)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

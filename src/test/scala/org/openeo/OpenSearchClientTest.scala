@@ -18,8 +18,8 @@ import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
-import scala.xml.XML
 import scala.util.Using
+import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -257,7 +257,7 @@ class OpenSearchClientTest {
       collectionId = "Sentinel1",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any](), "hello", "LEVEL1"
+      Map[String, Any]("productType"->"GRD"), "hello", "LEVEL1"
       )
 
     println(s"got ${features.size} features")
