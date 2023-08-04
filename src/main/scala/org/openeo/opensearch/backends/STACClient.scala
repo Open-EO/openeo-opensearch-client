@@ -49,8 +49,9 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
                                              processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
-    val (collectionsParam, bboxParam) = if (endpoint.getHost.contains("earth-search.aws.element84.com"))
-        ("[\"" + collectionId + "\"]", "[" + (Array(xMin, yMin, xMax, yMax) mkString ",") + "]")
+    val (collectionsParam, bboxParam) =
+      if (endpoint.getHost.contains("earth-search.aws.element84.com") && endpoint.getPath == "/v0")
+        (s"""["$collectionId"]""", Array(xMin, yMin, xMax, yMax).mkString("[", ",", "]"))
       else
         (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
 
