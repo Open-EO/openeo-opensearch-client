@@ -9,6 +9,11 @@ import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.awscore.retry.conditions.RetryOnErrorCodeCondition
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
+import software.amazon.awssdk.core.retry.RetryPolicy
+import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
+import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -17,10 +22,9 @@ import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
 import java.net.URI
 import java.nio.file.Paths
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import java.util.regex.Pattern
-import javax.net.ssl.HttpsURLConnection
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.matching.Regex
@@ -332,7 +336,29 @@ object OpenSearchResponses {
         }else{
           new URI( "https://" + s3Endpoint )
         }
-        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne"))
+        val retryCondition =
+          OrRetryCondition.create(
+            RetryCondition.defaultRetryCondition(),
+            RetryOnErrorCodeCondition.create("RequestTimeout"),
+            RetryOnStatusCodeCondition.create(403)
+          )
+        val backoffStrategy =
+          FullJitterBackoffStrategy.builder()
+            .baseDelay(Duration.ofMillis(500))
+            .maxBackoffTime(Duration.ofMillis(10000))
+            .build()
+        val retryPolicy =
+          RetryPolicy.defaultRetryPolicy()
+            .toBuilder()
+            .retryCondition(retryCondition)
+            .backoffStrategy(backoffStrategy)
+            .numRetries(30)
+            .build()
+        val overrideConfig =
+          ClientOverrideConfiguration.builder()
+            .retryPolicy(retryPolicy)
+            .build()
+        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
           .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
       }else{
         Option.empty
