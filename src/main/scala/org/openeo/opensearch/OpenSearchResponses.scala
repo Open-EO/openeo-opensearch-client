@@ -302,11 +302,10 @@ object OpenSearchResponses {
       implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
         override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
           for {
-            itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
             val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
-            FeatureCollection(itemsPerPage, featuresFiltered)
+            FeatureCollection(features.length, featuresFiltered)
           }
         }
       }
