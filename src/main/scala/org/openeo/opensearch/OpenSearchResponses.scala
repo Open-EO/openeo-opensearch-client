@@ -9,6 +9,7 @@ import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.locationtech.jts.geom.{CoordinateSequence, CoordinateSequenceFilter}
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.awscore.retry.conditions.RetryOnErrorCodeCondition
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
@@ -110,37 +111,13 @@ object OpenSearchResponses {
 
   }
 
-  /**
-   * Try applying noise on polygon to make it valid. If it did not work, return the original polygon.
-   */
-  private def tryNoiseToMakeValid(polygon: Polygon): Geometry = {
+  private def tryToMakeGeometryValid(polygon: Geometry): Geometry = {
     if (polygon.isValid) return polygon
-    val pReturn = polygon.copy().asInstanceOf[Polygon]
-    val random = new Random(42) // Noise needs to be deterministic
-    class InvertCoordinateFilter extends CoordinateSequenceFilter {
-      var _isDone = false
-
-      def filter(cs: CoordinateSequence, csIndex: Int): Unit = {
-        for (i <- 0 until cs.size()) {
-          val x = cs.getX(i)
-          val y = cs.getY(i)
-          if (i == 0 || i >= cs.size - 1) {
-          } else {
-            cs.setOrdinate(i, 0, x + (random.nextDouble() - 0.5) * 0.0000001)
-            cs.setOrdinate(i, 1, y + (random.nextDouble() - 0.5) * 0.0000001)
-          }
-        }
-        _isDone = true
-      }
-
-      override def isDone: Boolean = _isDone
-
-      override def isGeometryChanged: Boolean = true
-    }
-    pReturn.apply(new InvertCoordinateFilter())
-    if (pReturn.isValid) {
-      logger.info("Had to apply noise on invalid polygon.")
-      pReturn
+    // DouglasPeuckerSimplifier "does not preserve topology", so prefer TopologyPreservingSimplifier:
+    val polygonSimplified = TopologyPreservingSimplifier.simplify(polygon, 0.00001)
+    if (polygonSimplified.isValid) {
+      logger.info("Had to simplify invalid polygon.")
+      polygonSimplified
     } else {
       logger.warn("Could not fix invalid polygon.")
       polygon
@@ -148,30 +125,26 @@ object OpenSearchResponses {
   }
 
   def isDuplicate(g1: org.locationtech.jts.geom.Geometry, g2: org.locationtech.jts.geom.Geometry): Boolean = {
-    // Do simple check first for performance and safety
+    // Do simple check first for performance and robustness
     if (!g1.equalsExact(g2, 0.0001)) {
       val area1 = g1.getArea
       val area2 = g2.getArea
 
       try {
-        val g1Noise = g1 match {
-          case p: Polygon => tryNoiseToMakeValid(p)
-          case g => g
-        }
+        val g1Cleaned = tryToMakeGeometryValid(g1)
+        val g2Cleaned = tryToMakeGeometryValid(g2)
 
-        val g2Noise = g2 match {
-          case p: Polygon => tryNoiseToMakeValid(p)
-          case g => g
-        }
-
-        val areaIntersect = g1Noise.intersection(g2Noise).getArea
+        val areaIntersect = g1Cleaned.intersection(g2Cleaned).getArea
         // https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
         // The Sørensen–Dice coefficient (see below for other names) is a statistic used to gauge the similarity of two samples
         val diceScore = 2 * areaIntersect / (area1 + area2)
         if (diceScore < 0.99) return false // Threshold is based on gut feeling
       } catch {
-        // There could be an error thrown when applying noise on the polygon did not make it valid.
-        case _: Throwable => return false
+        // Polygon intersections can have many edge cases.
+        // Errors are probably un-avoidable, so log and go on:
+        case e: Throwable =>
+          logger.warn("Got error while checking if polygons are duplicate: " + e.toString)
+          return false
       }
     }
 
