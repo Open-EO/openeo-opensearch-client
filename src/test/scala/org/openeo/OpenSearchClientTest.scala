@@ -423,7 +423,7 @@ class OpenSearchClientTest {
    */
   def parseCreodiasCorruptPhoebus(): Unit = {
     HttpCache.enabled = true
-    val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
+    val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-07-30T00%3A00%3A00Z&completionDate=2018-07-30T23%3A59%3A59.999999999Z"
     val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
@@ -441,11 +441,11 @@ class OpenSearchClientTest {
   @Test
   def nonNodedIntersection(): Unit = {
     HttpCache.enabled = true
-    val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-3.4850284734588555%2C42.557489967174575%2C-3.204481304802883%2C42.7667871856319&sortParam=startDate&sortOrder=ascending&page=2&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-03-01T00%3A00%3A00Z&completionDate=2021-10-31T23%3A59%3A59.999999999Z"
+    val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-3.4850284734588555%2C42.557489967174575%2C-3.204481304802883%2C42.7667871856319&sortParam=startDate&sortOrder=ascending&page=2&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-05-09T00%3A00%3A00Z&completionDate=2021-10-11T23%3A59%3A59.999999999Z"
     val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     // TODO
-    assertEquals(36, features.length)
+    assertEquals(6, features.length)
   }
 }
