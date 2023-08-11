@@ -8,7 +8,6 @@ import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
-import org.locationtech.jts.geom.{CoordinateSequence, CoordinateSequenceFilter}
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.awscore.retry.conditions.RetryOnErrorCodeCondition
@@ -26,7 +25,6 @@ import java.net.URI
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
-import java.util.Random
 import java.util.regex.Pattern
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
