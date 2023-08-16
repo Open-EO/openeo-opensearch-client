@@ -74,7 +74,8 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
+                  bandNames: Option[Seq[String]] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -337,11 +338,10 @@ object OpenSearchResponses {
       implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
         override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
           for {
-            itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
             val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
-            FeatureCollection(itemsPerPage, featuresFiltered)
+            FeatureCollection(features.length, featuresFiltered)
           }
         }
       }
