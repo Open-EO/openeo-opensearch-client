@@ -19,12 +19,11 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 
 class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String],  val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {
-  private val crs = LatLng
+  require(dataGlob != null)
+  require(bands != null)
+  require(defaultDate != null)
 
-  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
-
-
-
+  // TODO: move cache to a companion object?
   private val pathsCache = CacheBuilder
     .newBuilder()
     .expireAfterWrite(1, HOURS)
@@ -38,7 +37,8 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
 
       }
     })
-  protected def paths: List[Path] = pathsCache.get(dataGlob)
+
+  private def paths: List[Path] = pathsCache.get(dataGlob)
 
   // Note: All parameters except for dateRange are unused.
   override def getProducts(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String): Seq[OpenSearchResponses.Feature] = {
@@ -76,5 +76,18 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
   override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
     val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
     OpenSearchResponses.FeatureCollection(products.length, products)
+  }
+
+  override final def equals(other: Any): Boolean = other match {
+    case that: GeotiffNoDateSearchClient =>
+      this.dataGlob == that.dataGlob &&
+        this.bands == that.bands &&
+        this.defaultDate == that.defaultDate
+    case _ => false
+  }
+
+  override final def hashCode(): Int = {
+    val state = Seq(dataGlob, bands, defaultDate)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

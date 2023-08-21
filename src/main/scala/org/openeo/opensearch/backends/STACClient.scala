@@ -4,11 +4,10 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, STACCollections, STACFeatureCollection}
-import scalaj.http.HttpOptions
 
-import java.net.URL
+import java.net.{URI, URL}
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter.ISO_DATE_TIME
+import java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
 import scala.collection.Map
 
 /**
@@ -23,6 +22,8 @@ import scala.collection.Map
  */
 class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.element84.com/v0"),
                  private val s3URLS: Boolean = true) extends OpenSearchClient {
+
+  require(endpoint != null)
 
   override def getProducts(collectionId: String,
                            dateRange: Option[(ZonedDateTime, ZonedDateTime)],
@@ -47,45 +48,46 @@ class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.e
                                              attributeValues: Map[String, Any], correlationId: String,
                                              processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
-    var collectionsParam = collectionId
-    var bboxParam = Array(xMin, yMin, xMax, yMax) mkString ","
-    if (endpoint.getHost.contains("earth-search.aws.element84.com")) {
-      collectionsParam = "[\"" + collectionId + "\"]"
-      bboxParam = "[" + (Array(xMin, yMin, xMax, yMax) mkString ",") + "]"
-    }
 
-    var getProducts = http(s"$endpoint/search")
+    val (collectionsParam, bboxParam) =
+      if (endpoint.getHost.contains("earth-search.aws.element84.com") && endpoint.getPath == "/v0")
+        (s"""["$collectionId"]""", Array(xMin, yMin, xMax, yMax).mkString("[", ",", "]"))
+      else
+        (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
+
+    // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/item-search
+    val getProducts = http(URI.create(s"$endpoint/search").normalize().toString)
       .param("collections", collectionsParam)
       .param("limit", "100")
       .param("bbox", bboxParam)
       .param("page", page.toString)
 
-    if (dateRange.isDefined) {
-      getProducts = getProducts
-        .param("datetime", dateRange.get._1.format(ISO_DATE_TIME) + "/" + dateRange.get._2.format(ISO_DATE_TIME))
+    val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
+      // requires offsets, not time zones according to
+      // https://github.com/radiantearth/stac-api-spec/tree/main/item-search#query-parameter-table
+      req.param("datetime", s"${fromDate format ISO_OFFSET_DATE_TIME}/${toDate format ISO_OFFSET_DATE_TIME}")
     }
 
-    val json = execute(getProducts)
+    val json = execute(getProductsForDateRange)
 
     STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
-    val getCollections = http(s"$endpoint/collections")
-      .option(HttpOptions.followRedirects(true))
-
+    // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/ogcapi-features
+    val getCollections = http(URI.create(s"$endpoint/collections").normalize().toString)
 
     val json = execute(getCollections)
-    
+
     STACCollections.parse(json).collections.map(c => Feature(c.id, null, null, null, null, None))
   }
 
-  override def equals(other: Any): Boolean = other match {
+  override final def equals(other: Any): Boolean = other match {
     case that: STACClient => this.endpoint == that.endpoint && this.s3URLS == that.s3URLS
     case _ => false
   }
 
-  override def hashCode(): Int = {
+  override final def hashCode(): Int = {
     val state = Seq(endpoint, s3URLS)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }

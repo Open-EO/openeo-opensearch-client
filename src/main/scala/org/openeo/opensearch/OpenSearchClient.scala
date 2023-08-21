@@ -154,4 +154,7 @@ abstract class OpenSearchClient {
       json
     }
   }
+
+  def equals(obj: Any): Boolean
+  def hashCode(): Int
 }

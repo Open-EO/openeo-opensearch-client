@@ -17,8 +17,8 @@ import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
-import scala.xml.XML
 import scala.util.Using
+import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -260,7 +260,7 @@ class OpenSearchClientTest {
       collectionId = "Sentinel1",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any](), "hello", "LEVEL1"
+      Map[String, Any]("productType"->"GRD"), "hello", "LEVEL1"
       )
 
     println(s"got ${features.size} features")
@@ -439,5 +439,16 @@ class OpenSearchClientTest {
       throw new Exception("There should be no PHOEBUS-core in results.")
     }
     assertEquals(1, features.length)
+  }
+
+  @Test
+  def nonNodedIntersection(): Unit = {
+    HttpCache.enabled = true
+    val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-3.4850284734588555%2C42.557489967174575%2C-3.204481304802883%2C42.7667871856319&sortParam=startDate&sortOrder=ascending&page=2&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-05-09T00%3A00%3A00Z&completionDate=2021-10-11T23%3A59%3A59.999999999Z"
+    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
+
+    // TODO
+    assertEquals(6, features.length)
   }
 }

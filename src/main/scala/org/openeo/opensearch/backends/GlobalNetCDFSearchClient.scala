@@ -19,11 +19,16 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 import scala.util.matching.Regex
 
 class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val gridExtent:Option[GridExtent[Long]]= Option.empty) extends OpenSearchClient {
+  require(dataGlob != null)
+  require(bands != null)
+  require(dateRegex != null)
+  require(gridExtent != null)
 
   protected def deriveDate(filename: String, date: Regex): ZonedDateTime = filename match {
     case date(year, month, day) => LocalDate.of(year.toInt, month.toInt, day.toInt).atStartOfDay(ZoneId.of("UTC"))
   }
 
+  // TODO: move cache to a companion object?
   private val pathsCache = CacheBuilder
     .newBuilder()
     .expireAfterWrite(1, HOURS)
@@ -93,5 +98,19 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
   override protected def getProductsFromPage(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String, page: Int): OpenSearchResponses.FeatureCollection = {
     val products = getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel).toArray
     OpenSearchResponses.FeatureCollection(products.length, products)
+  }
+
+  override final def equals(other: Any): Boolean = other match {
+    case that: GlobalNetCDFSearchClient =>
+      this.dataGlob == that.dataGlob &&
+        this.bands == that.bands &&
+        this.dateRegex == that.dateRegex &&
+        this.gridExtent == that.gridExtent
+    case _ => false
+  }
+
+  override final def hashCode(): Int = {
+    val state = Seq(dataGlob, bands, dateRegex, gridExtent)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

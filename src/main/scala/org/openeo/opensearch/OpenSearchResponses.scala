@@ -8,7 +8,13 @@ import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.awscore.retry.conditions.RetryOnErrorCodeCondition
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
+import software.amazon.awssdk.core.retry.RetryPolicy
+import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
+import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -17,10 +23,9 @@ import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
 import java.net.URI
 import java.nio.file.Paths
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import java.util.regex.Pattern
-import javax.net.ssl.HttpsURLConnection
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.matching.Regex
@@ -69,7 +74,8 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0))
+  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
+                  bandNames: Option[Seq[String]] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -104,6 +110,46 @@ object OpenSearchResponses {
 
   }
 
+  private def tryToMakeGeometryValid(polygon: Geometry): Geometry = {
+    if (polygon.isValid) return polygon
+    // DouglasPeuckerSimplifier "does not preserve topology", so prefer TopologyPreservingSimplifier:
+    val polygonSimplified = TopologyPreservingSimplifier.simplify(polygon, 0.00001)
+    if (polygonSimplified.isValid) {
+      logger.info("Had to simplify invalid polygon.")
+      polygonSimplified
+    } else {
+      logger.warn("Could not fix invalid polygon.")
+      polygon
+    }
+  }
+
+  def isDuplicate(g1: org.locationtech.jts.geom.Geometry, g2: org.locationtech.jts.geom.Geometry): Boolean = {
+    // Do simple check first for performance and robustness
+    if (!g1.equalsExact(g2, 0.0001)) {
+      val area1 = g1.getArea
+      val area2 = g2.getArea
+
+      try {
+        val g1Cleaned = tryToMakeGeometryValid(g1)
+        val g2Cleaned = tryToMakeGeometryValid(g2)
+
+        val areaIntersect = g1Cleaned.intersection(g2Cleaned).getArea
+        // https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
+        // The Sørensen–Dice coefficient (see below for other names) is a statistic used to gauge the similarity of two samples
+        val diceScore = 2 * areaIntersect / (area1 + area2)
+        if (diceScore < 0.99) return false // Threshold is based on gut feeling
+      } catch {
+        // Polygon intersections can have many edge cases.
+        // Errors are probably un-avoidable, so log and go on:
+        case e: Throwable =>
+          logger.warn("Got error while checking if polygons are duplicate: " + e.toString)
+          return false
+      }
+    }
+
+    true
+  }
+
   private def isDuplicate(f1: Feature, f2: Feature): Boolean = {
     if (ChronoUnit.SECONDS.between(f1.nominalDate, f2.nominalDate) > 30) return false
 
@@ -116,16 +162,7 @@ object OpenSearchResponses {
     }
 
     if (f1.geometry.isDefined && f2.geometry.isDefined) {
-      // keep simle check for performance reasons
-      if (!f1.geometry.get.equalsExact(f2.geometry.get, 0.0001)) {
-        val area1 = f1.geometry.get.getArea
-        val area2 = f2.geometry.get.getArea
-        val areaIntersect = f1.geometry.get.intersection(f2.geometry.get).getArea
-        // https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
-        // The Sørensen–Dice coefficient (see below for other names) is a statistic used to gauge the similarity of two samples
-        val diceScore = 2 * areaIntersect / (area1 + area2)
-        if (diceScore < 0.99) return false // Threshold is based on gut feeling
-      }
+      return isDuplicate(f1.geometry.get, f2.geometry.get)
     }
 
     true
@@ -301,11 +338,10 @@ object OpenSearchResponses {
       implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
         override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
           for {
-            itemsPerPage <- c.downField("numberReturned").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
             val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
-            FeatureCollection(itemsPerPage, featuresFiltered)
+            FeatureCollection(features.length, featuresFiltered)
           }
         }
       }
@@ -332,7 +368,29 @@ object OpenSearchResponses {
         }else{
           new URI( "https://" + s3Endpoint )
         }
-        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne"))
+        val retryCondition =
+          OrRetryCondition.create(
+            RetryCondition.defaultRetryCondition(),
+            RetryOnErrorCodeCondition.create("RequestTimeout"),
+            RetryOnStatusCodeCondition.create(403)
+          )
+        val backoffStrategy =
+          FullJitterBackoffStrategy.builder()
+            .baseDelay(Duration.ofMillis(500))
+            .maxBackoffTime(Duration.ofMillis(10000))
+            .build()
+        val retryPolicy =
+          RetryPolicy.defaultRetryPolicy()
+            .toBuilder()
+            .retryCondition(retryCondition)
+            .backoffStrategy(backoffStrategy)
+            .numRetries(30)
+            .build()
+        val overrideConfig =
+          ClientOverrideConfiguration.builder()
+            .retryPolicy(retryPolicy)
+            .build()
+        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
           .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
       }else{
         Option.empty
