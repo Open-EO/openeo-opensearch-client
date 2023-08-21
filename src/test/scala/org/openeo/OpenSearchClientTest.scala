@@ -10,8 +10,9 @@ import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
+import org.openeo.opensearch.{OpenSearchClient, ZonedDateTimeOrdering}
 
-import java.net.{URI, URL}
+import java.net.URL
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util
