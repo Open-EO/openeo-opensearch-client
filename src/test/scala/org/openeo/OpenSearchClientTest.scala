@@ -99,6 +99,27 @@ class OpenSearchClientTest {
   }
 
   @Test
+  def testOscarsGetProductsSameDate(): Unit = {
+    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+
+
+    val theDate = LocalDate.of(2019, 10, 3)
+    val features = openSearch.getProducts(
+      collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
+      (theDate, theDate),
+      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
+      Map[String, Any]("eo:cloud_cover" -> 50.0, "resolution" -> 10), "hello", ""
+    )
+
+    println(s"got ${features.size} features")
+    assertTrue(features.size < 160)
+    assertTrue(features.nonEmpty)
+    val maxDate = features.map(_.nominalDate).max
+    assertTrue(maxDate.isBefore(theDate.plusDays(1).atStartOfDay(ZoneId.of("UTC"))))
+
+  }
+
+  @Test
   def testCreoGetProducts(): Unit = {
     val openSearch = CreodiasClient()
 
