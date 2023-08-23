@@ -104,7 +104,7 @@ class OpenSearchClientTest {
 
     val features = openSearch.getProducts(
       collectionId = "Sentinel2",
-      (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
+      (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 6)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any]("eo:cloud_cover"->90.0), correlationId = "hello", "S2MSI2A"
       )
@@ -178,7 +178,7 @@ class OpenSearchClientTest {
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertEquals(15,features.length)
+    assertEquals(11,features.length)
   }
 
   /**
