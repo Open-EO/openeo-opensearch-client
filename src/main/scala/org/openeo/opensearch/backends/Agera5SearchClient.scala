@@ -83,7 +83,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
       val to = dateRange.get._2
       sortedDates = sortedDates
         .dropWhile { case (date, _) => date isBefore from }
-        .takeWhile { case (date, _) => !(date isAfter to) }
+        .takeWhile { case (date, _) => (date isBefore to) || (date isEqual from) }
     }
 
     val datedRasterSources: Array[(ZonedDateTime, String, GeoTiffRasterSource)] = sortedDates

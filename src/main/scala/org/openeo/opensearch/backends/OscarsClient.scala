@@ -96,7 +96,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
     if(dateRange.isDefined) {
       val dates = dateRange.get
       //oscars actually manages to return features that are outside of the daterange for coherence
-      val features = resultCollection.features.filter(f=>(f.nominalDate.isEqual(dates._1) || f.nominalDate.isAfter(dates._1)) && f.nominalDate.isBefore(dates._2.plusDays(1)) )
+      val features = resultCollection.features.filter(f=>f.nominalDate.isEqual(dates._1) || (f.nominalDate.isAfter(dates._1) && f.nominalDate.isBefore(dates._2))  )
       FeatureCollection(resultCollection.itemsPerPage,features)
     }else{
       resultCollection
