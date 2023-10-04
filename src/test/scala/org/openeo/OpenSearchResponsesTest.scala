@@ -4,25 +4,15 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
+import org.openeo.TestHelpers.loadJsonResource
 import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection, STACFeatureCollection}
 
 import java.io.{PrintWriter, StringWriter}
 import java.net.URI
 import java.time.ZonedDateTime
-import scala.io.{Codec, Source}
 
 class OpenSearchResponsesTest {
-
-  private val resourcePath = "/org/openeo/"
-
-  private def loadJsonResource(classPathResourceName: String, codec: Codec = Codec.UTF8): String = {
-    val fullPath = resourcePath + classPathResourceName
-    val jsonFile = Source.fromURL(getClass.getResource(fullPath))(codec)
-
-    try jsonFile.mkString
-    finally jsonFile.close()
-  }
 
   @Test
   def testReformat():Unit = {
