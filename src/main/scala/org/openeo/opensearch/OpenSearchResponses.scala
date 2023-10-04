@@ -701,7 +701,7 @@ object OpenSearchResponses {
             logger.debug(s"${if (matchesPattern) "retaining" else "omitting"} feature ${feature.id} with tileId $tileId")
             matchesPattern
           case _ =>
-            logger.debug(s"omitting feature ${feature.id} with unknown tileId")
+            logger.warn(s"omitting feature ${feature.id} with unknown tileId")
             false
         })
         case _ => features
