@@ -641,11 +641,11 @@ object OpenSearchResponses {
       geometry
     }
 
-    def parse(json: String, dedup: Boolean = false): FeatureCollection = {
+    def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
-            id <- c.downField("properties").downField("productIdentifier").as[String]
+            id <- c.downField("properties").downField("productIdentifier").as[String] // TODO: that's not the feature ID
             geometry <- c.downField("geometry").as[Json]
             nominalDate <- c.downField("properties").downField("startDate").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Array[Link]]
@@ -675,15 +675,15 @@ object OpenSearchResponses {
         }
       }
 
-
-
       implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
         override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
           for {
             itemsPerPage <- c.downField("properties").downField("itemsPerPage").as[Int]
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
+            val featuresFiltered =
+              if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
+              else retainTileIdPattern(features, tileIdPattern)
             FeatureCollection(itemsPerPage, featuresFiltered)
           }
         }
@@ -692,6 +692,20 @@ object OpenSearchResponses {
       decode[FeatureCollection](json)
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
     }
+
+    private def retainTileIdPattern(features: Array[Feature], tileIdPattern: Option[String]): Array[Feature] =
+      tileIdPattern match {
+        case Some(pattern) => features.filter(feature => feature.tileID match {
+          case Some(tileId) =>
+            val matchesPattern = tileId matches pattern.replace("*", ".*")
+            logger.debug(s"${if (matchesPattern) "retaining" else "omitting"} feature ${feature.id} with tileId $tileId")
+            matchesPattern
+          case _ =>
+            logger.warn(s"omitting feature ${feature.id} with unknown tileId")
+            false
+        })
+        case _ => features
+      }
   }
 
   case class STACCollection(id: String)

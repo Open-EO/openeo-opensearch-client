@@ -4,6 +4,7 @@ import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
+import org.slf4j.LoggerFactory
 import scalaj.http.HttpOptions
 
 import java.net.URL
@@ -12,6 +13,7 @@ import java.time.format.DateTimeFormatter.ISO_INSTANT
 import scala.collection.Map
 
 object CreodiasClient{
+  private val logger = LoggerFactory.getLogger(classOf[CreodiasClient])
 
   def apply(): CreodiasClient = {new CreodiasClient()}
 
@@ -74,7 +76,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("maxRecords", "100")
       .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
-      .params(attributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline").contains(_)).toSeq)
+      .params(attributeValues.mapValues(_.toString).filterKeys(isPropagated).toSeq)
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
@@ -96,6 +98,15 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         .param("completionDate", dateRange.get._2 format ISO_INSTANT)
     }
 
+    val tileIdPattern = attributeValues.get("tileId").map(_.toString)
+
+    tileIdPattern match {
+      case Some(pattern) if !pattern.contains("*") =>
+        getProducts = getProducts.param("tileId", pattern)
+        logger.debug(s"included non-wildcard tileId $pattern param")
+      case _ =>
+    }
+
     /*
       // HACK: Putting pb as latest filter changes request time from 1.5min to 20sec.
       // Used this JS snippet to debug it:
@@ -111,8 +122,12 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
     }
 
     val json = execute(getProducts)
-    CreoFeatureCollection.parse(json, dedup = true)
+    CreoFeatureCollection.parse(json, dedup = true, tileIdPattern)
   }
+
+  private def isPropagated(attribute: String): Boolean =
+    !Set("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline", "tileId")
+      .contains(attribute)
 
   override def getCollections(correlationId: String): Seq[Feature] = {
     val getCollections = http(s"$endpoint/collections.json")

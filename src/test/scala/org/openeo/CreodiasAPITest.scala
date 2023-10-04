@@ -1,12 +1,14 @@
 package org.openeo
 
-import geotrellis.proj4.CRS
+import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
+import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.backends.CreodiasClient
 
 import java.time.ZoneOffset.UTC
-import java.time.ZonedDateTime
+import java.time.{LocalDate, ZonedDateTime}
 import scala.collection.Map
 
 class CreodiasAPITest {
@@ -38,8 +40,25 @@ class CreodiasAPITest {
     // The parser in getProducts should be able to handle these incorrect multipolygons.
     new CreodiasClient().getProducts(
       "Sentinel1", Some(fromDate, toDate),
-      bbox, attributeValues, "", ""
+      bbox, attributeValues
     )
   }
 
+  @Test
+  def testTileIdWithWildcard(): Unit = {
+    def getProducts(tileIdPattern: Option[String]): Seq[OpenSearchResponses.Feature] = {
+      new CreodiasClient().getProducts(
+        "Sentinel2",
+        dateRange = LocalDate.of(2023, 9, 24) -> LocalDate.of(2023, 9, 24),
+        bbox = ProjectedExtent(
+          Extent(4.912844218500582, 51.02816932187383, 4.918160603369832, 51.029815337603594), LatLng),
+        attributeValues = tileIdPattern.map("tileId" -> _).toMap,
+        correlationId = "",
+        processingLevel = ""
+      )
+    }
+
+    assertTrue(getProducts(tileIdPattern = None).nonEmpty) // sanity check
+    assertTrue(getProducts(tileIdPattern = Some("30*")).isEmpty)
+  }
 }
