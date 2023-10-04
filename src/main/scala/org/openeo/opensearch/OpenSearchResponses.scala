@@ -645,7 +645,7 @@ object OpenSearchResponses {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
-            id <- c.downField("properties").downField("productIdentifier").as[String]
+            id <- c.downField("properties").downField("productIdentifier").as[String] // TODO: that's not the feature ID
             geometry <- c.downField("geometry").as[Json]
             nominalDate <- c.downField("properties").downField("startDate").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Array[Link]]
@@ -698,10 +698,10 @@ object OpenSearchResponses {
         case Some(pattern) => features.filter(feature => feature.tileID match {
           case Some(tileId) =>
             val matchesPattern = tileId matches pattern.replace("*", ".*")
-            logger.debug(s"${if (matchesPattern) "retaining" else "omitting"} feature with tileId $tileId")
+            logger.debug(s"${if (matchesPattern) "retaining" else "omitting"} feature ${feature.id} with tileId $tileId")
             matchesPattern
           case _ =>
-            logger.debug(s"omitting feature with unknown tileId")
+            logger.debug(s"omitting feature ${feature.id} with unknown tileId")
             false
         })
         case _ => features
