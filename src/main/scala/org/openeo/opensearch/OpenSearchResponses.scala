@@ -15,6 +15,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
 import software.amazon.awssdk.core.retry.RetryPolicy
 import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
 import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
+import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -391,6 +392,8 @@ object OpenSearchResponses {
             .retryPolicy(retryPolicy)
             .build()
         Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
+          // Avoid error: "set the software.amazon.awssdk.http.service.impl system property with the FQCN of the HTTP service to use as the default"
+          .httpClient(ApacheHttpClient.builder().build())
           .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
       }else{
         Option.empty
