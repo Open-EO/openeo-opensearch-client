@@ -79,6 +79,19 @@
             <version>${awssdk.version}</version>
         </dependency>
         <dependency>
+            <!-- For ApacheHttpClient -->
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
+            <version>${awssdk.version}</version>
+        </dependency>
+        <dependency>
+            <!-- For ProxyConfigProvider -->
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>utils</artifactId>
+            <version>${awssdk.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.7.25</version>
@@ -121,18 +134,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <!-- For ApacheHttpClient -->
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>apache-client</artifactId>
-            <version>2.21.5</version>
-        </dependency>
-        <dependency>
-            <!-- For ProxyConfigProvider -->
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>utils</artifactId>
-            <version>2.21.5</version>
-        </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
