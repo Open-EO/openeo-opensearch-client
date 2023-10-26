@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.TestHelpers.loadJsonResource
-import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
+import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection}
 
 import java.time.ZonedDateTime
 import java.util.stream.{Stream => JStream}
@@ -125,5 +125,13 @@ class CreoFeatureCollectionTest {
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
     val link = features(0).links.find(l => l.title.get.contains("B04")).get
     assertEquals(0, link.pixelValueOffset.get, 1e-6)
+  }
+
+  @Test
+  def testPagingReliesOnActualNumberOfFeaturesReturned(): Unit = {
+    val productsResponse = loadJsonResource("creodiasUnreliablePagingValues.json")
+    val FeatureCollection(itemsInPage, _) = CreoFeatureCollection.parse(productsResponse, dedup = true)
+
+    assertEquals(4, itemsInPage)
   }
 }

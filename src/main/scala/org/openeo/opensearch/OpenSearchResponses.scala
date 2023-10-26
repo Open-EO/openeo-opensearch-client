@@ -232,6 +232,8 @@ object OpenSearchResponses {
     features.flatMap(f => if (featuresFiltered.contains(f)) List(f) else List())
   }
 
+  // TODO: itemsPerPage is confusing as it's the number of items/features in _this_ page; replace with something like
+  //  hasMoreResults: Boolean instead?
   case class FeatureCollection(itemsPerPage: Int, features: Array[Feature])
 
   object FeatureCollection {
