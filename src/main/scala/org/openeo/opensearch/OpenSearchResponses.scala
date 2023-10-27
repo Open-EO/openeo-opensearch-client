@@ -617,6 +617,40 @@ object OpenSearchResponses {
         })
     }
 
+    private def getLandsat8FilePaths(path: String): Seq[Link] = {
+      val filePrefix = s"${path.split("/").last}_"
+      val fileSuffix = ".TIF"
+
+      /* TODO: avoid listing all of these bands by inspecting an _MTL.xxx file instead?
+          The link titles specified in creo_layercatalog.json then become the keys in this file
+          e.g. "FILE_NAME_BAND_1" etc. */
+      val linkTitles = Seq(
+        "SR_B1",
+        "SR_B2",
+        "SR_B3",
+        "SR_B4",
+        "SR_B5",
+        "SR_B6",
+        "SR_B7",
+        "ST_B10",
+        "QA_PIXEL", // TODO: is this right? Compare to SHub's BQA
+        "QA_RADSAT",
+        "SR_QA_AEROSOL",
+        "ST_QA",
+        "ST_TRAD",
+        "ST_URAD",
+        "ST_DRAD",
+        "ST_ATRAN",
+        "ST_EMIS",
+        "ST_EMSD",
+        "ST_CDIST",
+      )
+
+      linkTitles.map { title =>
+        Link(href = URI.create(s"${getGDALPrefix(path)}$path/$filePrefix$title$fileSuffix"), title = Some(title))
+      }
+    }
+
     private def ensureValidGeometry(geometry: Json): Json = {
       // TODO: This is required because the old Creodias API can return incorrect MultiPolygon geometries.
       // This can be removed once the API is fixed.
@@ -663,14 +697,16 @@ object OpenSearchResponses {
               Option.empty
             }
 
-            if(id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")){
+            if (id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")) {
               val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties=properties)
-            }else if(id.contains("COP-DEM_GLO-30-DGED")){
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
+            } else if (id.contains("COP-DEM_GLO-30-DGED")) {
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution,tileID,Option(theGeometry), generalProperties=properties)
-            }else{
-              Feature(id, extent, nominalDate, links, resolution,tileID,Option(theGeometry), generalProperties=properties)
+              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
+            } else if (id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
+              Feature(id, extent, nominalDate, getLandsat8FilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
+            } else {
+              Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
             }
           }
         }
