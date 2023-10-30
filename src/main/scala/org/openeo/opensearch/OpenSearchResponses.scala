@@ -27,6 +27,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import java.util.regex.Pattern
 import scala.collection.mutable.ListBuffer
+import scala.util.Using
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.matching.Regex
 import scala.xml.{Node, XML}
@@ -618,37 +619,23 @@ object OpenSearchResponses {
     }
 
     private def getLandsat8FilePaths(path: String): Seq[Link] = {
-      val filePrefix = s"${path.split("/").last}_"
-      val fileSuffix = ".TIF"
+      val commonFilePrefix = path.split("/").last
+      val metadataXmlPath = s"${getGDALPrefix(path)}$path/${commonFilePrefix}_MTL.xml"
+      val fileNameNodeLabelPrefix = "FILE_NAME_"
 
-      /* TODO: avoid listing all of these bands by inspecting an _MTL.xxx file instead?
-          The link titles specified in creo_layercatalog.json then become the keys in this file
-          e.g. "FILE_NAME_BAND_1" etc. */
-      val linkTitles = Seq(
-        "SR_B1",
-        "SR_B2",
-        "SR_B3",
-        "SR_B4",
-        "SR_B5",
-        "SR_B6",
-        "SR_B7",
-        "ST_B10",
-        "QA_PIXEL",
-        "QA_RADSAT",
-        "SR_QA_AEROSOL",
-        "ST_QA",
-        "ST_TRAD",
-        "ST_URAD",
-        "ST_DRAD",
-        "ST_ATRAN",
-        "ST_EMIS",
-        "ST_EMSD",
-        "ST_CDIST",
-      )
+      val links = Using(loadMetadata(metadataXmlPath)) { in =>
+        val metadataXml = XML.load(in)
 
-      linkTitles.map { title =>
-        Link(href = URI.create(s"${getGDALPrefix(path)}$path/$filePrefix$title$fileSuffix"), title = Some(title))
+        for {
+          productContents <- metadataXml \\ "LANDSAT_METADATA_FILE" \ "PRODUCT_CONTENTS"
+          fileName <- productContents.child if fileName.label.startsWith(fileNameNodeLabelPrefix)
+        } yield Link(
+          href = URI.create(s"${getGDALPrefix(path)}$path/${fileName.text}"),
+          title = Some(fileName.label.drop(fileNameNodeLabelPrefix.length))
+        )
       }
+
+      links.get
     }
 
     private def ensureValidGeometry(geometry: Json): Json = {

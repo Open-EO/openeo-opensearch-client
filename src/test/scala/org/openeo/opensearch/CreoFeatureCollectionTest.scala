@@ -1,6 +1,6 @@
 package org.openeo.opensearch
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
@@ -133,5 +133,37 @@ class CreoFeatureCollectionTest {
     val FeatureCollection(itemsInPage, _) = CreoFeatureCollection.parse(productsResponse, dedup = true)
 
     assertEquals(4, itemsInPage)
+  }
+
+  @Test
+  def landsat8L2Response(): Unit = {
+    val productsResponse = loadJsonResource("creodiasLandsat8L2.json")
+
+    val FeatureCollection(_, features) = CreoFeatureCollection.parse(productsResponse, dedup = true)
+    val Array(feature) = features
+
+    val expectedLinkTitles = Seq(
+      "BAND_1",
+      "BAND_2",
+      "BAND_3",
+      "BAND_4",
+      "BAND_5",
+      "BAND_6",
+      "BAND_7",
+      "BAND_ST_B10",
+      "QUALITY_L1_PIXEL",
+      "QUALITY_L1_RADIOMETRIC_SATURATION",
+      "QUALITY_L2_AEROSOL",
+      "QUALITY_L2_SURFACE_TEMPERATURE",
+      "THERMAL_RADIANCE",
+      "UPWELL_RADIANCE",
+      "DOWNWELL_RADIANCE",
+      "ATMOSPHERIC_TRANSMITTANCE",
+      "EMISSIVITY",
+      "EMISSIVITY_STDEV",
+      "CLOUD_DISTANCE",
+    )
+
+    assertTrue(expectedLinkTitles.forall(expectedTitle => feature.links.exists(_.title contains expectedTitle)))
   }
 }
