@@ -633,7 +633,7 @@ object OpenSearchResponses {
         "SR_B6",
         "SR_B7",
         "ST_B10",
-        "QA_PIXEL", // TODO: is this right? Compare to SHub's BQA
+        "QA_PIXEL",
         "QA_RADSAT",
         "SR_QA_AEROSOL",
         "ST_QA",
