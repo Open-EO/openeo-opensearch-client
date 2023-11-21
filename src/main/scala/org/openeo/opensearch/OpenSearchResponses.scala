@@ -111,15 +111,15 @@ object OpenSearchResponses {
 
   }
 
-  private def tryToMakeGeometryValid(polygon: Geometry): Geometry = {
+  private def tryToMakeGeometryValid(polygon: Geometry, contextMessage: Option[String] = None): Geometry = {
     if (polygon.isValid) return polygon
     // DouglasPeuckerSimplifier "does not preserve topology", so prefer TopologyPreservingSimplifier:
     val polygonSimplified = TopologyPreservingSimplifier.simplify(polygon, 0.00001)
     if (polygonSimplified.isValid) {
-      logger.info("Had to simplify invalid polygon.")
+      logger.info("Had to simplify invalid polygon. " + contextMessage.getOrElse(""))
       polygonSimplified
     } else {
-      logger.warn("Could not fix invalid polygon.")
+      logger.warn("Could not fix invalid polygon. " + contextMessage.getOrElse(""))
       polygon
     }
   }
@@ -674,7 +674,7 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
           } yield {
-            val theGeometry = ensureValidGeometry(geometry).toString().parseGeoJson[Geometry]
+            val theGeometry = tryToMakeGeometryValid(ensureValidGeometry(geometry).toString().parseGeoJson[Geometry], Some(id))
             val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =
