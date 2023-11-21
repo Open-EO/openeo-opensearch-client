@@ -473,4 +473,15 @@ class OpenSearchClientTest {
     // TODO
     assertEquals(6, features.length)
   }
+
+  @Test
+  def nonNodedIntersection2021(): Unit = {
+    HttpCache.enabled = true
+    val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-8.516219555442497%2C53.760075440808144%2C-8.143264523420843%2C53.97824716188207&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&orbitNumber=23887&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-10-01T00%3A00%3A00Z&completionDate=2021-10-31T00%3A00%3A00Z&tileId=29UNV"
+    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
+
+    features.foreach(f => assertTrue(f.geometry.get.isValid))
+    assertEquals(2, features.length)
+  }
 }
