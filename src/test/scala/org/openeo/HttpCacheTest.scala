@@ -96,7 +96,7 @@ class HttpCacheTest {
     HttpCache.enabled = true // Tiff not fully supported, but should not give errors anyway
     val t0 = System.currentTimeMillis()
 
-    val b04RasterSource = GeoTiffRasterSource("https://artifactory.vgt.vito.be/testdata-public/S2_B04_timeseries.tiff")
+    val b04RasterSource = GeoTiffRasterSource("https://artifactory.vgt.vito.be/artifactory/testdata-public/S2_B04_timeseries.tiff")
     b04RasterSource.read().get
 
     val t1 = System.currentTimeMillis()
