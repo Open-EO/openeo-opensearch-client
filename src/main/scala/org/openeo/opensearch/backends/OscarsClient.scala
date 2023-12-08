@@ -119,7 +119,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
   private def getCollectionsFromPage(correlationId: String = "", startIndex: Int): Seq[Feature] = {
     val getCollections = http(s"$endpoint/collections")
       .option(HttpOptions.followRedirects(true))
-      .param("count", "50")
+      .param("count", "200")
       .param("startIndex", startIndex.toString)
       .param("clientId", clientId(correlationId))
 
