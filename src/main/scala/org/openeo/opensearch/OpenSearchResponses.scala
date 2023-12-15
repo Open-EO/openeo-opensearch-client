@@ -445,9 +445,8 @@ object OpenSearchResponses {
                 )
                 var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTraceString
                 var cause = e.getCause
-                while (cause != null) {
+                if(cause!=null) {
                   msgStr += "\n Cause: " + cause + "   " + cause.getMessage
-                  cause = e.getCause
                 }
                 logger.warn(msgStr)
                 throw e
