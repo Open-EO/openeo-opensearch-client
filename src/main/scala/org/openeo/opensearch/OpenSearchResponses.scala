@@ -15,6 +15,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
 import software.amazon.awssdk.core.retry.RetryPolicy
 import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
 import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
+import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -360,6 +361,7 @@ object OpenSearchResponses {
     private val s3Endpoint = System.getenv().getOrDefault("AWS_S3_ENDPOINT","")//https://s3.cloudferro.com
     private val useHTTPS = System.getenv().getOrDefault("AWS_HTTPS","YES")//https://s3.cloudferro.com
 
+
     private val creoClient = {
       if(s3Endpoint!="") {
         val uri =
@@ -394,8 +396,12 @@ object OpenSearchResponses {
             .apiCallTimeout(Duration.ofMinutes(10))
             .retryPolicy(retryPolicy)
             .build()
-        Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
-          .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
+
+        Some(S3Client.builder.httpClientBuilder(ApacheHttpClient.builder()
+          .connectionTimeout(Duration.ofMinutes(1)))
+          .endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
+         .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
+
       }else{
         Option.empty
       }
