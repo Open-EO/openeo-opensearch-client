@@ -15,7 +15,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
 import software.amazon.awssdk.core.retry.RetryPolicy
 import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
 import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
-import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -397,7 +397,8 @@ object OpenSearchResponses {
             .retryPolicy(retryPolicy)
             .build()
 
-        Some(S3Client.builder.httpClientBuilder(ApacheHttpClient.builder()
+        Some(S3Client.builder.httpClientBuilder(UrlConnectionHttpClient.builder()
+          .socketTimeout(Duration.ofMinutes(1))
           .connectionTimeout(Duration.ofMinutes(1)))
           .endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
          .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
