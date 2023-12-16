@@ -390,6 +390,8 @@ object OpenSearchResponses {
             .build()
         val overrideConfig =
           ClientOverrideConfiguration.builder()
+            .apiCallAttemptTimeout(Duration.ofMinutes(1))
+            .apiCallTimeout(Duration.ofMinutes(10))
             .retryPolicy(retryPolicy)
             .build()
         Some(S3Client.builder.endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
