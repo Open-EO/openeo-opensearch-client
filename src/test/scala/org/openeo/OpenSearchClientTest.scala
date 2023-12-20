@@ -375,15 +375,16 @@ class OpenSearchClientTest {
     val metadataBand = selectedFeature.links.find(_.href.toString.endsWith("MTD_TL.xml")).get
     if (metadataBand.href.toString.contains("/PHOEBUS-core/")) {
       throw new Exception("There should be no PHOEBUS-core in results.")
-    } else {
-      val str = {
-        val in = Source.fromInputStream(CreoFeatureCollection.loadMetadata(metadataBand.href.toString))
-        try in.mkString.trim
-        finally in.close()
-      }
-      assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fully supported yet.
-      XML.loadString(str) // Test if XML is parsable
     }
+    val str = {
+      val is = CreoFeatureCollection.loadMetadata(metadataBand.href.toString)
+      if (is == null) throw new NullPointerException()
+      val in = Source.fromInputStream(is)
+      try in.mkString.trim
+      finally in.close()
+    }
+    assertTrue(str.contains("Tile_Angles")) // small sanity check. Angle bands are not fully supported yet.
+    XML.loadString(str) // Test if XML is parsable
   }
 
   private def testManifestLevelSentinel2(date: LocalDate,

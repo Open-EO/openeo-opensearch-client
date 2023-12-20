@@ -174,9 +174,14 @@ object OpenSearchResponses {
    * Those occur often in processing baseline 2.08 products.
    */
   private def removePhoebusFeatures(features: Array[Feature]): Array[Feature] = {
-    features.filter(f => !f.links.exists(
+    val newFeatures = features.filter(f => !f.links.exists(
       l => l.href.toString.contains("/PHOEBUS-core/") && l.href.toString.contains("//")
     ))
+    if (features.length > 0 && newFeatures.length == 0) {
+      // This should not be a problem anymore in 2024 Q1
+      logger.warn(f"A lot of old, incompatible, features where ignored in this request.")
+    }
+    newFeatures
   }
 
   /**
@@ -459,7 +464,9 @@ object OpenSearchResponses {
               uri.resolve(uri.toString).toURL
                 .openConnection.getInputStream
             } catch {
-              case _: FileNotFoundException => null
+              case e: FileNotFoundException =>
+                logger.warn(e.toString)
+                null
             }
           }
         } else {
@@ -492,6 +499,7 @@ object OpenSearchResponses {
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
           val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+
           Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
       })
 
