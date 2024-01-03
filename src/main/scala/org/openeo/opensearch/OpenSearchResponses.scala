@@ -397,7 +397,7 @@ object OpenSearchResponses {
             .build()
         val overrideConfig =
           ClientOverrideConfiguration.builder()
-            .apiCallAttemptTimeout(Duration.ofMinutes(1))
+            .apiCallAttemptTimeout(Duration.ofMinutes(10))
             .apiCallTimeout(Duration.ofMinutes(10))
             .retryPolicy(retryPolicy)
             .build()
