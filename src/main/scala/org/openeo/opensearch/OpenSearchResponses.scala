@@ -278,6 +278,9 @@ object OpenSearchResponses {
                   case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
                     None
                 }
+              }else if(tileId.contains("GLOBE")){
+                //CGLS specific convention to set tileId to 'GLOBE'
+                Some(LatLng)
               } else {
                 None
               }
@@ -288,6 +291,16 @@ object OpenSearchResponses {
               // needed for oscars:
               res = c.downField("properties").downField("additionalAttributes").downField("resolution").as[Double].toOption
             }
+
+            if (tileId.contains("GLOBE")) {
+              //CGLS sets resolution in meter while it's in fact degrees
+              if(res.contains(300)){
+                res = Some(0.00297619047620)
+              }else if(res.contains(1000)){
+                res = Some(0.00892857142857)
+              }
+            }
+
 
             Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
               tileId, geometry = geometry, crs = crs, generalProperties=properties)
