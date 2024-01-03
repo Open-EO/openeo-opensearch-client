@@ -228,7 +228,6 @@ class OpenSearchClientTest {
     checkGetCollections(client)
   }
 
-  @Ignore // Old Finder API (RESTO) will be deprecated in March 2023.
   @Disabled
   @Test
   def testCreoGetCollections(): Unit = {
@@ -240,7 +239,7 @@ class OpenSearchClientTest {
     checkGetCollections(new STACClient())
   }
 
-  @Ignore
+  @Disabled
   @Test
   def testSTACGetCollectionsCScale(): Unit = {
     checkGetCollections(new STACClient(new URL("https://resto.c-scale.zcu.cz/")))
