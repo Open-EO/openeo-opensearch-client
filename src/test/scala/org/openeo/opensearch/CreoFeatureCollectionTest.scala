@@ -12,11 +12,15 @@ import java.util.stream.{Stream => JStream}
 
 object CreoFeatureCollectionTest {
   def tileIdPatterns: JStream[Arguments] = JStream.of(
-    Arguments.of(None, Integer.valueOf(1)),
-    Arguments.of(Some("31UFS"), Integer.valueOf(1)),
-    Arguments.of(Some("30UFS"), Integer.valueOf(0)),
-    Arguments.of(Some("31*"), Integer.valueOf(1)),
-    Arguments.of(Some("30*"), Integer.valueOf(0)),
+    Arguments.of(None, Boolean.box(true)),
+    Arguments.of(Some("31UFS"), Boolean.box(true)),
+    Arguments.of(Some("30UFS"), Boolean.box(false)),
+    Arguments.of(Some("31*"), Boolean.box(true)),
+    Arguments.of(Some("30*"), Boolean.box(false)),
+    Arguments.of(Some("31*F*"), Boolean.box(true)),
+    Arguments.of(Some("30*F*"), Boolean.box(false)),
+    Arguments.of(Some("3*U**"), Boolean.box(true)),
+    Arguments.of(Some("3*T**"), Boolean.box(false)),
   )
 }
 
@@ -24,11 +28,11 @@ class CreoFeatureCollectionTest {
 
   @ParameterizedTest
   @MethodSource(Array("tileIdPatterns"))
-  def testTileIdPattern(tileIdPattern: Option[String], numFeaturesRemaining: Int): Unit = {
+  def testTileIdPattern(tileIdPattern: Option[String], featureIncluded: Boolean): Unit = {
     val productsResponse = loadJsonResource("creoDiasTileIdPattern.json")
     val features = CreoFeatureCollection.parse(productsResponse, dedup = true, tileIdPattern = tileIdPattern).features
 
-    assertEquals(numFeaturesRemaining, features.length)
+    assertEquals(featureIncluded, features.nonEmpty)
   }
 
   @Test
