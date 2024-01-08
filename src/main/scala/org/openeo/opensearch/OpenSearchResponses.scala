@@ -14,7 +14,7 @@ import software.amazon.awssdk.awscore.retry.conditions.RetryOnErrorCodeCondition
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
 import software.amazon.awssdk.core.retry.RetryPolicy
 import software.amazon.awssdk.core.retry.backoff.FullJitterBackoffStrategy
-import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnStatusCodeCondition}
+import software.amazon.awssdk.core.retry.conditions.{OrRetryCondition, RetryCondition, RetryOnExceptionsCondition, RetryOnStatusCodeCondition}
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, NoSuchKeyException}
@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
-import java.net.URI
+import java.net.{SocketTimeoutException, URI}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
@@ -394,7 +394,8 @@ object OpenSearchResponses {
           OrRetryCondition.create(
             RetryCondition.defaultRetryCondition(),
             RetryOnErrorCodeCondition.create("RequestTimeout"),
-            RetryOnStatusCodeCondition.create(403)
+            RetryOnStatusCodeCondition.create(403),
+            RetryOnExceptionsCondition.create(classOf[SocketTimeoutException])
           )
         val backoffStrategy =
           FullJitterBackoffStrategy.builder()
