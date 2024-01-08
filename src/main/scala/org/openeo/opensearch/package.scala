@@ -2,6 +2,7 @@ package org.openeo
 
 import org.slf4j.LoggerFactory
 import scalaj.http.HttpStatusException
+import software.amazon.awssdk.core.exception.SdkClientException
 
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -34,6 +35,9 @@ package object opensearch {
           true
         case _: SocketTimeoutException =>
           logger.warn(s"socket timeout exception: retrying within $amount $timeUnit")
+          true
+        case e: SdkClientException =>
+          logger.warn(s"Retrying: ${e.getMessage} Retryable: ${e.retryable()}")
           true
         case _ => false
       })
