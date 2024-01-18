@@ -42,7 +42,7 @@ object OpenSearchClientTest {
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
     arguments(LocalDate.parse("2018-03-26"), new java.lang.Double(2.07)),
-    //    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)), Has only PHOEBUS-core products
+    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)), // Has only PHOEBUS-core products
     arguments(LocalDate.parse("2018-10-08"), new java.lang.Double(2.09)),
     arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.10)),
     arguments(LocalDate.parse("2018-11-21"), new java.lang.Double(2.11)),
@@ -443,9 +443,6 @@ class OpenSearchClientTest {
   }
 
   @Test
-  /**
-   * Links refering to PHOEBUS-core should be ignored: https://github.com/Open-EO/openeo-opensearch-client/issues/16
-   */
   def parseCreodiasCorruptPhoebus(): Unit = {
     HttpCache.enabled = true
     val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
@@ -460,7 +457,8 @@ class OpenSearchClientTest {
       // there used to be a product with processingBaseline == 2.08
       throw new Exception("There should be no PHOEBUS-core in results.")
     }
-    assertEquals(1, features.length)
+    // PHOEBUS producs get converted now
+    assertEquals(2, features.length)
   }
 
   @Test
