@@ -67,6 +67,7 @@ object OpenSearchClient {
    */
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], clientType: String): OpenSearchClient = {
     clientType match {
+      case "cgls_oscars" => new CGLSOscarsClient(new URL(endpoint), bands)
       case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "globspatialonly" => new GeotiffNoDateSearchClient(endpoint, bands)

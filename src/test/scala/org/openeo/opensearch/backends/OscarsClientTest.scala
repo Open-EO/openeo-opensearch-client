@@ -9,6 +9,7 @@ import org.openeo.opensearch.OpenSearchClient
 
 import java.net.URL
 import java.time.LocalDate
+import java.util.Collections
 import scala.collection.Map
 
 class OscarsClientTest {
@@ -21,7 +22,7 @@ class OscarsClientTest {
 
   @Test
   def testGDMP(): Unit = {
-    val openSearch = OpenSearchClient(new URL("https://globalland.vito.be/catalogue"))
+    val openSearch = OpenSearchClient("https://globalland.vito.be/catalogue",false,"",Collections.singletonList("GDMP"),"cgls_oscars")
     val collections = openSearch.getCollections("testGDMP")
     assert(collections.length > 10) // by default a page is 100
     val unique = collections.map(_.id).toSet
@@ -37,6 +38,7 @@ class OscarsClientTest {
     println(features)
     assertEquals(Some(LatLng),features.head.crs)
     assertEquals(Some(0.00297619047620),features.head.resolution)
+    assertEquals("NETCDF:/data/MTDA/Copernicus/Land/global/netcdf/dry_matter_productivity/gdmp_300m_v1_10daily/2018/20180810/c_gls_GDMP300-RT2_201808100000_GLOBE_PROBAV_V1.0.1.nc:GDMP",features.head.links.head.href.toString)
   }
 
   @Test
