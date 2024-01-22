@@ -178,9 +178,9 @@ object OpenSearchResponses {
     val newFeatures = features.filter(f => !f.links.exists(
       l => l.href.toString.contains("/PHOEBUS-core/") && l.href.toString.contains("//")
     ))
-    if (features.length > 0 && newFeatures.length == 0) {
+    if (newFeatures.length < features.length) {
       // This should not be a problem anymore in 2024 Q1
-      logger.warn(f"A lot of old, incompatible, features where ignored in this request.")
+      logger.warn(f"Old, incompatible, features where ignored in this request.")
     }
     newFeatures
   }
@@ -520,9 +520,12 @@ object OpenSearchResponses {
         .map((dataObject: Node) =>{
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
-          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocation.toString).normalize().toString}"
+          // Fix links in PB 2.08 products:
+          val fileLocationString = fileLocation.toString()
+            .replaceAll("""/dpc/app/facilities/PHOEBUS-core/PHOEBUS-core[^"]*?/\.S.._OPER[^"]*?/""", "/")
+          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocationString).normalize().toString}"
 
-          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocation.toString())))
+          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocationString)))
       })
 
       // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
