@@ -671,6 +671,16 @@ object OpenSearchResponses {
       links.get
     }
 
+    private def getSentinel1RTCFilePaths(path: String): Seq[Link] = {
+      val commonFilePrefix = path.split("/").last
+
+      val parts = commonFilePrefix.split("_")
+      val prefix = s"s1_rtc_${parts.last}_${parts.dropRight(1).mkString("_")}"
+      val suffixes = Seq("ANGLE", "AREA","MASK","VH","VV")
+
+      suffixes.map(s=>Link(URI.create(s"${getGDALPrefix(path)}$path/${prefix}_$s.tif"),Some(s)))
+    }
+
     private def ensureValidGeometry(geometry: Json): Json = {
       // TODO: This is required because the old Creodias API can return incorrect MultiPolygon geometries.
       // This can be removed once the API is fixed.
@@ -725,6 +735,8 @@ object OpenSearchResponses {
               Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
               Feature(id, extent, nominalDate, getLandsat8FilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
+            } else if (id.startsWith("/eodata/Sentinel-1-RTC")) {
+              Feature(id, extent, nominalDate, getSentinel1RTCFilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
             } else {
               Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
             }

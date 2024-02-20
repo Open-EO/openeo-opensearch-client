@@ -140,6 +140,26 @@ class CreoFeatureCollectionTest {
   }
 
   @Test
+  def sentinel1RTCResponse(): Unit = {
+    val productsResponse = loadJsonResource("creodiasSentinel1RTCResponse.json")
+
+    val FeatureCollection(_, features) = CreoFeatureCollection.parse(productsResponse, dedup = true)
+
+    val expectedLinkTitles = Seq(
+      "VV",
+      "VH",
+      "AREA",
+      "MASK",
+      "ANGLE"
+    )
+    features.foreach(f=>{
+      assertTrue(expectedLinkTitles.forall(expectedTitle => f.links.exists(_.title contains expectedTitle)))
+    })
+
+
+  }
+
+  @Test
   def landsat8L2Response(): Unit = {
     val productsResponse = loadJsonResource("creodiasLandsat8L2.json")
 
