@@ -15,6 +15,19 @@ import java.time.ZonedDateTime
 class OpenSearchResponsesTest {
 
   @Test
+  def testFeatureBuilder():Unit = {
+    val f = OpenSearchResponses.FeatureBuilder().withBBox(0,0,10,10).withId("id").withNominalDate("2021-01-01T00:00:00Z").addLink("url","title",0.0,java.util.Arrays.asList("B01","B02")).withCRS("EPSG:32631").build()
+    assertEquals("id",f.id)
+    assertEquals(Extent(0,0,10,10),f.bbox)
+    assertEquals(ZonedDateTime.parse("2021-01-01T00:00:00Z"),f.nominalDate)
+    assertEquals(1,f.links.length)
+    assertEquals("url",f.links(0).href.toString)
+    assertEquals("title",f.links(0).title.get)
+    assertEquals(0.0,f.links(0).pixelValueOffset.get,0.0)
+    assertEquals("EPSG:32631",f.crs.get.toString())
+  }
+
+  @Test
   def testReformat():Unit = {
     assertEquals("IMG_DATA_Band_B8A_20m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_20m_Band9_Tile1_Data","GRANULE/L2A_T30SVH_A017537_20181031T110435/IMG_DATA/R20m/T30SVH_20181031T110201_B8A_20m.jp2"))
     assertEquals("IMG_DATA_Band_B12_60m_Tile1_Data",OpenSearchResponses.sentinel2Reformat("IMG_DATA_60m_Band10_Tile1_Data","GRANULE/L2A_T30SVH_A017537_20181031T110435/IMG_DATA/R60m/T30SVH_20181031T110201_B12_60m.jp2"))

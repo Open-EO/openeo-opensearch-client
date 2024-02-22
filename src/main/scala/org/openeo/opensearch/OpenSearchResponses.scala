@@ -27,6 +27,7 @@ import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import java.util.regex.Pattern
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Using
 import scala.util.control.Breaks.{break, breakable}
@@ -87,6 +88,38 @@ object OpenSearchResponses {
                                organisationName: Option[String], instrument: Option[String],
                                processingBaseline: Option[Double]) {
     def this() = this(None, None, None, None, None)
+  }
+
+  case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
+                                    tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
+                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
+
+                                    var pixelValueOffset: Double = 0    )  {
+
+    def withId(id:String): FeatureBuilder = copy(id=id)
+    def withBBox(minx:Double,miny:Double,maxx:Double,maxy:Double): FeatureBuilder = copy(bbox=Extent(minx,miny,maxx,maxy))
+    def withNominalDate(nominalDate:String): FeatureBuilder = copy(nominalDate=ZonedDateTime.parse(nominalDate))
+
+    def withResolution(resolution:Double): FeatureBuilder = copy(resolution=Some(resolution))
+
+    def addLink(href:String, title:String, pixelValueOffset:Double, bandNames:java.util.List[String]): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala))
+      copy(links = links :+ link)
+    }
+
+    def withTileId(tileId:String): FeatureBuilder = copy(tileID=Some(tileId))
+    def withGeometry(geometry:Geometry): FeatureBuilder = copy(geometry=Some(geometry))
+
+    def withCRS(crs:String): FeatureBuilder = copy(crs=Some(CRS.fromName(crs)))
+
+    def withGeneralProperties(published: Option[ZonedDateTime] = None, orbitNumber: Option[Int] = None,
+                             organisationName: Option[String] = None, instrument: Option[String] = None,
+                             processingBaseline: Option[Double] = None): FeatureBuilder =
+      copy(generalProperties = GeneralProperties(published, orbitNumber, organisationName, instrument, processingBaseline))
+
+    def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
+
+    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent, pixelValueOffset = pixelValueOffset)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
