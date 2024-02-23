@@ -90,6 +90,8 @@ object OpenSearchResponses {
     def this() = this(None, None, None, None, None)
   }
 
+  def featureBuilder(): FeatureBuilder = FeatureBuilder()
+
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
