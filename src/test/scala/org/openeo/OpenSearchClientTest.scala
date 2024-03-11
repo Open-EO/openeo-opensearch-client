@@ -153,7 +153,7 @@ class OpenSearchClientTest {
       Map[String, Any]("eo:cloud_cover" -> 90.0, "productType" -> "L2A"), correlationId = "hello", "S2MSI2A"
     )
     assertEquals(1, features.length)
-    assertEquals("/eodata/Sentinel-2/MSI/L2A/2018/08/12/S2A_MSIL2A_20180812T105621_N9999_R094_T30SVH_20220926T193221", features.head.id)
+    assertEquals("/eodata/Sentinel-2/MSI/L2A_N0500/2018/08/12/S2A_MSIL2A_20180812T105621_N0500_R094_T30SVH_20230815T120022.SAFE", features.head.id)
   }
 
   @Test
