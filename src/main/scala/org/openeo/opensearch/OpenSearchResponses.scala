@@ -780,7 +780,7 @@ object OpenSearchResponses {
             if (id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")) {
               val all_links = getFilePathsFromManifest(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
-            } else if (id.contains("COP-DEM_GLO-30-DGED")) {
+            } else if (id.contains("COP-DEM_GLO")) {
               val all_links = getDEMPathFromInspire(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
