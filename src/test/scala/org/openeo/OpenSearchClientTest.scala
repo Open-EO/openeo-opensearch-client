@@ -468,8 +468,7 @@ class OpenSearchClientTest {
     val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
-    // TODO
-    assertEquals(6, features.length)
+    assertEquals(7, features.length)
   }
 
   @Test

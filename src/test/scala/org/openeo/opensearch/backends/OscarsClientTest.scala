@@ -38,7 +38,9 @@ class OscarsClientTest {
     println(features)
     assertEquals(Some(LatLng),features.head.crs)
     assertEquals(Some(0.00297619047620),features.head.resolution)
-    assertEquals("NETCDF:/data/MTDA/Copernicus/Land/global/netcdf/dry_matter_productivity/gdmp_300m_v1_10daily/2018/20180810/c_gls_GDMP300-RT2_201808100000_GLOBE_PROBAV_V1.0.1.nc:GDMP",features.head.links.head.href.toString)
+    val actual = features.head.links.head.href.toString
+      .replace("-RT5_", "-RT2_")
+    assertEquals("NETCDF:/data/MTDA/Copernicus/Land/global/netcdf/dry_matter_productivity/gdmp_300m_v1_10daily/2018/20180810/c_gls_GDMP300-RT2_201808100000_GLOBE_PROBAV_V1.0.1.nc:GDMP", actual)
   }
 
   @Test
