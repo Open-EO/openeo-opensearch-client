@@ -73,7 +73,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("sortParam", "startDate") // paging requires deterministic order
       .param("sortOrder", "ascending")
       .param("page", page.toString)
-      .param("maxRecords", "100")
+      .param("maxRecords", "1000") // A larger page size does not slow down the requests.
       .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(isPropagated).toSeq)
