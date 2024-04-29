@@ -25,18 +25,23 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
         private def makeInputStream: InputStream = {
           val fullUrl = this.url.toString
           val idx = fullUrl.indexOf("//")
-          var filePath = fullUrl.substring(idx + 2)
+          val filePathOriginal = fullUrl.substring(idx + 2)
+          var filePath = filePathOriginal
+          val invalidChars = """[\\":*?&\"<>|]""".r
+          filePath = invalidChars.replaceAllIn(filePath, "_")
+          filePath = """__+""".r.replaceAllIn(filePath, "_")
+
           if (filePath.length > 255) {
             // An individual name should be max 255 characters long. Lazy implementation caps whole file path:
-            val hash = "___" + (filePath.hashCode >>> 1).toString // TODO, parse extension?
+            val hash = "___" + (filePathOriginal.hashCode >>> 1).toString // TODO, parse extension?
             filePath = filePath.substring(0, 255 - hash.length) + hash
           }
           val lastSlash = filePath.lastIndexOf("/")
           val (basePath, filename) = filePath.splitAt(lastSlash + 1)
           filePath = basePath + filename
 
-          val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
-          // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
+//          val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
+           val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
             println("Caching request url: " + url)
