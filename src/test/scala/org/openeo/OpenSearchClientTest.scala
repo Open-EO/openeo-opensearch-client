@@ -443,6 +443,7 @@ class OpenSearchClientTest {
   }
 
   @Test
+  @Disabled("Test not needed anymore as PHOEBUS-core products where reprocessed")
   def parseCreodiasCorruptPhoebus(): Unit = {
     HttpCache.enabled = true
     val url = "https://finder.creodias.eu/oldresto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=0%7C34%7C37&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
@@ -468,8 +469,7 @@ class OpenSearchClientTest {
     val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
-    // TODO
-    assertEquals(6, features.length)
+    assertEquals(7, features.length)
   }
 
   @Test
