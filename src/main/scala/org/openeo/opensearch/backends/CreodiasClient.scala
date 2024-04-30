@@ -122,6 +122,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
     }
 
     val json = execute(getProducts)
+    println("JSON result: " + json) // TODO: Remove println
     CreoFeatureCollection.parse(json, dedup = true, tileIdPattern)
   }
 
