@@ -429,6 +429,7 @@ class OpenSearchClientTest {
       correlationId = "hello",
       processingLevel,
     )
+    println(s"got ${features.size} features")
 
     for (feature <- features) {
       // Checking bands for all features:
