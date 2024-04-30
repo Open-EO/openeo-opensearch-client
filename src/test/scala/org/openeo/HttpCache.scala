@@ -28,19 +28,20 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           val filePathOriginal = fullUrl.substring(idx + 2)
           var filePath = filePathOriginal
           val invalidChars = """[\\":*?&\"<>|]""".r
-          filePath = invalidChars.replaceAllIn(filePath, "_")
+          filePath = invalidChars.replaceAllIn(filePath, "_") // slugify to make valid windows path
           filePath = """__+""".r.replaceAllIn(filePath, "_")
 
-          if (filePath.length > 255) {
+          if (filePath.length > 255 || filePath != filePathOriginal) {
             // An individual name should be max 255 characters long. Lazy implementation caps whole file path:
             val hash = "___" + (filePathOriginal.hashCode >>> 1).toString // TODO, parse extension?
-            filePath = filePath.substring(0, 255 - hash.length) + hash
+            val sLength = Math.min(filePath.length, 255 - hash.length)
+            filePath = filePath.substring(0, sLength) + hash
           }
           val lastSlash = filePath.lastIndexOf("/")
           val (basePath, filename) = filePath.splitAt(lastSlash + 1)
           filePath = basePath + filename
 
-          val cachePath = getClass.getResource("/org/openeo/httpsCache").getPath
+          val cachePath = """/\D:/""".r.replaceAllIn(getClass.getResource("/org/openeo/httpsCache").getPath, "/")
           // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
@@ -50,7 +51,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
               val tmpBeforeAtomicMove = Paths.get(cachePath, "unconfirmed_download_" + UUID.randomUUID())
               val stream = openConnectionSuper(url).getInputStream
               try Files.copy(stream, tmpBeforeAtomicMove)
-              finally stream.close()
+              finally stream.close() // might save in different encodings like EUC-KR, ISO-8859-1, utf-8, ascii
               Files.move(tmpBeforeAtomicMove, path)
               new FileInputStream(new File(path.toString))
             }
