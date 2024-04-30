@@ -424,7 +424,9 @@ class OpenSearchClientTest {
       ProjectedExtent(extentTAP4326, LatLng),
       Map(
         "productType" -> productType,
-        "processingBaseline" -> processingBaseline, // avoid old products getting dedupped away
+        "processingBaseline" -> {
+          if (processingBaseline == 5) "05.00" else processingBaseline
+        }, // avoid old products getting dedupped away
       ),
       correlationId = "hello",
       processingLevel,
