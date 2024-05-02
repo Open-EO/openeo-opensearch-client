@@ -44,6 +44,37 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
+    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto") && dateRange.isDefined) {
+      def from(startDate: ZonedDateTime): Seq[Feature] = {
+        var endDate = startDate.plusYears(1)
+        // TODO: Check if half open interval or not
+        if (endDate.isAfter(dateRange.get._2)) {
+          endDate = dateRange.get._2
+        }
+        logger.info("startDate : " + startDate + " endDate: " + endDate)
+        if (startDate == endDate) {
+          Seq()
+        } else {
+          val features = getProductsOriginal(collectionId,
+            Some((startDate, endDate)), bbox,
+            attributeValues, correlationId,
+            processingLevel
+          )
+          if (features.length <= 0) Seq() else features ++ from(endDate)
+        }
+      }
+
+      from(dateRange.get._1)
+    } else {
+      getProductsOriginal(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
+    }
+  }
+
+  def getProductsOriginal(collectionId: String,
+                          dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                          bbox: ProjectedExtent,
+                          attributeValues: Map[String, Any], correlationId: String,
+                          processingLevel: String): Seq[Feature] = {
     def from(page: Int): Seq[Feature] = {
       val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
                                                                           dateRange, bbox,
