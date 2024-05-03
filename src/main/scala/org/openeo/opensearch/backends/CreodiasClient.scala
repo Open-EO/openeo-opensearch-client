@@ -14,6 +14,7 @@ import scala.collection.Map
 
 object CreodiasClient{
   private val logger = LoggerFactory.getLogger(classOf[CreodiasClient])
+  private val pageSize = 1000
 
   def apply(): CreodiasClient = {new CreodiasClient()}
 
@@ -80,23 +81,43 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                           bbox: ProjectedExtent,
                           attributeValues: Map[String, Any], correlationId: String,
                           processingLevel: String): Seq[Feature] = {
-    def from(page: Int): Seq[Feature] = {
-      val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
-                                                                          dateRange, bbox,
-                                                                          attributeValues, correlationId,
-                                                                          processingLevel,
-                                                                          page)
-      if (itemsPerPage <= 0) Seq() else features ++ from(page + 1)
-    }
+    // First try fast track
+    val collection = getProductsFromPageCustom(collectionId, dateRange, bbox, attributeValues,
+      correlationId, processingLevel, 1, sorted = false)
+    if (collection.features.length < pageSize * 0.9) {
+      // If we are sure there is no pagination
+      collection.features
+    } else {
+      logger.info("Too many features to download in one request. Using pagination. correlationId: " + correlationId)
 
-    from(1)
+      def from(page: Int): Seq[Feature] = {
+        val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
+          dateRange, bbox,
+          attributeValues, correlationId,
+          processingLevel,
+          page)
+        if (itemsPerPage <= 0) Seq() else features ++ from(page + 1)
+      }
+
+      from(1)
+    }
   }
 
   override protected def getProductsFromPage(collectionId: String,
-                                     dateRange: Option[(ZonedDateTime, ZonedDateTime)],
-                                     bbox: ProjectedExtent,
-                                     attributeValues: Map[String, Any], correlationId: String,
-                                     processingLevel: String, page: Int): FeatureCollection = {
+                                             dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                             bbox: ProjectedExtent,
+                                             attributeValues: Map[String, Any], correlationId: String,
+                                             processingLevel: String, page: Int): FeatureCollection = {
+    getProductsFromPageCustom(collectionId, dateRange, bbox, attributeValues,
+      correlationId, processingLevel, page, sorted = true)
+  }
+
+  protected def getProductsFromPageCustom(collectionId: String,
+                                          dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                          bbox: ProjectedExtent,
+                                          attributeValues: Map[String, Any], correlationId: String,
+                                          processingLevel: String, page: Int,
+                                          sorted: Boolean): FeatureCollection = {
     var bboxReprojected = bbox.reproject(LatLng)
     if (attributeValues.get("resolution").contains(30) && attributeValues.get("productType").contains("DGE_30")) {
       // Otherwise catalogue.dataspace.copernicus.eu might return a 504 error
@@ -106,14 +127,19 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
     var getProducts = http(collection(collectionId))
       .param("box", Array(xMin, yMin, xMax, yMax) mkString ",")
-      // COMMENTED FOR TESTING! Sorting is needed when using pagination
-//      .param("sortParam", "startDate") // paging requires deterministic order
-//      .param("sortOrder", "ascending")
       .param("page", page.toString)
-      .param("maxRecords", "1000") // A larger page size does not slow down the requests.
+      .param("maxRecords", pageSize.toString) // A larger page size does not slow down the requests.
       .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(isPropagated).toSeq)
+
+    if (sorted) {
+      getProducts = getProducts
+        .param("sortParam", "startDate") // paging requires deterministic order
+        .param("sortOrder", "ascending")
+    } else if (page != 1) {
+      throw new IllegalArgumentException("When sorted == false, it is undeterministic to request later pages")
+    }
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
