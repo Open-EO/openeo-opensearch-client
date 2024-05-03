@@ -79,6 +79,5 @@ class CreodiasAPITest {
     }
 
     assertTrue(getProducts(tileIdPattern = None).nonEmpty) // sanity check
-//    assertTrue(getProducts(tileIdPattern = Some("30*")).isEmpty)
   }
 }

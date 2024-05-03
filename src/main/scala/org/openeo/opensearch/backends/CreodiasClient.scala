@@ -133,7 +133,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("dataset", "ESA-DATASET")
       .params(attributeValues.mapValues(_.toString).filterKeys(isPropagated).toSeq)
 
-    if (true) {
+    if (sorted) {
       getProducts = getProducts
         .param("sortParam", "startDate") // paging requires deterministic order
         .param("sortOrder", "ascending")
