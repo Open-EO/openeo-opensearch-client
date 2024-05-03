@@ -44,14 +44,18 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
-    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto") && dateRange.isDefined) {
+    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2")
+      && dateRange.isDefined) {
+      // DEM has a big difference between beginDate and completionDate.
+      // The temporal extent should span both dates, so we avoid doing this for DEM.
+      // For Sentinel2, beginDate and completionDate look alike so this is no issue here.
       def from(startDate: ZonedDateTime): Seq[Feature] = {
         var endDate = startDate.plusYears(1)
         // TODO: Check if half open interval or not
         if (endDate.isAfter(dateRange.get._2)) {
           endDate = dateRange.get._2
         }
-        logger.info("startDate : " + startDate + " endDate: " + endDate)
+        logger.info("startDate: " + startDate + " endDate: " + endDate)
         if (startDate == endDate) {
           Seq()
         } else {
@@ -60,7 +64,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
             attributeValues, correlationId,
             processingLevel
           )
-          if (features.length <= 0) Seq() else features ++ from(endDate)
+          features ++ from(endDate)
         }
       }
 
