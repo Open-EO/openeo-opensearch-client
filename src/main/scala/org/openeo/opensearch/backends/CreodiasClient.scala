@@ -106,8 +106,9 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
     var getProducts = http(collection(collectionId))
       .param("box", Array(xMin, yMin, xMax, yMax) mkString ",")
-      .param("sortParam", "startDate") // paging requires deterministic order
-      .param("sortOrder", "ascending")
+      // COMMENTED FOR TESTING! Sorting is needed when using pagination
+//      .param("sortParam", "startDate") // paging requires deterministic order
+//      .param("sortOrder", "ascending")
       .param("page", page.toString)
       .param("maxRecords", "1000") // A larger page size does not slow down the requests.
       .param("status", "ONLINE")
