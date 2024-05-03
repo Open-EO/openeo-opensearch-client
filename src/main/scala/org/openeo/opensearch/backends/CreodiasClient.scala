@@ -57,14 +57,14 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         if (endDate.isAfter(dateRange.get._2)) {
           endDate = dateRange.get._2
         }
-        if (startDate == endDate) {
-          Seq()
+        val features = getProductsOriginal(collectionId,
+          Some((startDate, endDate.plusNanos(1))), bbox,
+          attributeValues, correlationId,
+          processingLevel
+        )
+        if (endDate == dateRange.get._2 || endDate.isAfter(dateRange.get._2)) {
+          features
         } else {
-          val features = getProductsOriginal(collectionId,
-            Some((startDate, endDate.plusNanos(1))), bbox,
-            attributeValues, correlationId,
-            processingLevel
-          )
           features ++ from(startDate.plusYears(1))
         }
       }
