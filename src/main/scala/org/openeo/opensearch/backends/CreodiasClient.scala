@@ -52,8 +52,8 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       // The temporal extent should span both dates, so we avoid doing this for DEM.
       // For Sentinel2, beginDate and completionDate look alike so this is no issue here.
       def from(startDate: ZonedDateTime): Seq[Feature] = {
-        var endDate = startDate.plusYears(1)
-        // TODO: Check if half open interval or not
+        var endDate = startDate.plusYears(1).plusNanos(1)
+        // begin < product < end. Products that fall exactly on beginning or end are excluded
         if (endDate.isAfter(dateRange.get._2)) {
           endDate = dateRange.get._2
         }
@@ -66,7 +66,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
             attributeValues, correlationId,
             processingLevel
           )
-          features ++ from(endDate)
+          features ++ from(startDate.plusYears(1))
         }
       }
 
@@ -81,11 +81,11 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                           bbox: ProjectedExtent,
                           attributeValues: Map[String, Any], correlationId: String,
                           processingLevel: String): Seq[Feature] = {
-    // First try fast track
+    // First try fast unsorted query. If there are too many results, try again, with sorted pagination
     val collection = getProductsFromPageCustom(collectionId, dateRange, bbox, attributeValues,
       correlationId, processingLevel, 1, sorted = false)
     if (collection.features.length < pageSize * 0.9) {
-      // If we are sure there is no pagination
+      // 90% threshold, just in case. Probably not needed
       collection.features
     } else {
       logger.info("Too many features to download in one request. Using pagination. correlationId: " + correlationId)
