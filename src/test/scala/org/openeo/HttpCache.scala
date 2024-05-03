@@ -13,7 +13,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
   def openConnectionSuper(url: URL): java.net.URLConnection = super.openConnection(url)
 
   override def openConnection(url: URL): java.net.URLConnection = {
-    if (!HttpCache.enabled) {
+    if (true) {
       openConnectionSuper(url)
     } else if (url.toString.contains(".tif")) {
       println("Tiff could be requested partially, and HttpCache does not support that. " + url)
