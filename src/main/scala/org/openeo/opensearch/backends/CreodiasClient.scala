@@ -44,7 +44,8 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
-    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2")
+    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto")
+      && collectionId == "Sentinel2"
       && dateRange.isDefined) {
       // DEM has a big difference between beginDate and completionDate.
       // The temporal extent should span both dates, so we avoid doing this for DEM.
