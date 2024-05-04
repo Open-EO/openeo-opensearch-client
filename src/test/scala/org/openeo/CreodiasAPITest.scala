@@ -61,4 +61,23 @@ class CreodiasAPITest {
     assertTrue(getProducts(tileIdPattern = None).nonEmpty) // sanity check
     assertTrue(getProducts(tileIdPattern = Some("30*")).isEmpty)
   }
+
+  @Test
+  def testLargeTemporalExtent(): Unit = {
+    HttpCache.enabled = true
+
+    val extentTAP4326 = Extent(5.07, 51.215, 5.08, 51.22)
+    def getProducts(tileIdPattern: Option[String]): Seq[OpenSearchResponses.Feature] = {
+      new CreodiasClient().getProducts(
+        "Sentinel2",
+        dateRange = LocalDate.of(2016, 1, 1) -> LocalDate.of(2023, 12, 1),
+        bbox = ProjectedExtent(extentTAP4326, LatLng),
+        attributeValues = Map[String, Any](),
+        correlationId = "",
+        processingLevel = ""
+      )
+    }
+
+    assertTrue(getProducts(tileIdPattern = None).nonEmpty) // sanity check
+  }
 }
