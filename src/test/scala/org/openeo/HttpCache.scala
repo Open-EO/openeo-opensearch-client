@@ -45,7 +45,8 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
-            HttpCache.synchronized {
+//            HttpCache.synchronized
+            {
               if (!Files.exists(path)) {
                 println("Caching request url: " + url)
                 try {
