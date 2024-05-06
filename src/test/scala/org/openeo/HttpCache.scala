@@ -45,7 +45,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
-            HttpCache.Locker.synchronized {
+            HttpCache.synchronized {
               if (!Files.exists(path)) {
                 println("Caching request url: " + url)
                 try {
@@ -55,7 +55,6 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
                   try Files.copy(stream, tmpBeforeAtomicMove)
                   finally stream.close() // might save in different encodings like EUC-KR, ISO-8859-1, utf-8, ascii
                   Files.move(tmpBeforeAtomicMove, path)
-                  println("Written")
                   new FileInputStream(new File(path.toString))
                 }
                 catch {
@@ -125,5 +124,4 @@ object HttpCache {
       if (protocol == "http" || protocol == "https") httpsCache else null
     }
   })
-  private object Locker
 }

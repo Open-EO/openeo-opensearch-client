@@ -96,7 +96,7 @@ class HttpCacheTest {
     HttpCache.enabled = true
     val url = "https://openeo.org/images/openeo_navbar_logo.png"
 
-    val cachePath = new File("""/\D:/""".r.replaceAllIn(getClass.getResource("/org/openeo/httpsCache/openeo.org/images/openeo_navbar_logo.png").getPath, "/"))
+    val cachePath = new File("""/\D:/""".r.replaceAllIn(getClass.getResource("/org/openeo/httpsCache/").getPath + "openeo.org/images/openeo_navbar_logo.png", "/"))
     cachePath.delete()
 
     Seq(url, url).par.foreach(url => {
