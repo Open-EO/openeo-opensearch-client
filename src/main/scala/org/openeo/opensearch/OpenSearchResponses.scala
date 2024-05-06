@@ -778,7 +778,8 @@ object OpenSearchResponses {
             }
 
             if (id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")) {
-              // links will be filled in after deduplication
+              val all_links = getFilePathsFromManifest(id)
+              logger.warn("all links: " + all_links.length)
               Feature(id, extent, nominalDate, Array.empty, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.contains("COP-DEM_GLO")) {
               val all_links = getDEMPathFromInspire(id)
@@ -805,7 +806,7 @@ object OpenSearchResponses {
             featuresFiltered = featuresFiltered.map(f => {
               if (f.id.endsWith(".SAFE") || f.id.startsWith("/eodata/Sentinel-2/MSI/")) {
                 val all_links = getFilePathsFromManifest(f.id)
-                if (!f.links.isEmpty) throw new Exception("links should be empty at this point")
+                // if (!f.links.isEmpty) throw new Exception("links should be empty at this point")
                 f.copy(links = all_links.toArray)
               } else f
             })
