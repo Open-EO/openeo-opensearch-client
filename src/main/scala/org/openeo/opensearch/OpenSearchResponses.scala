@@ -756,8 +756,6 @@ object OpenSearchResponses {
       geometry
     }
 
-    def needsLinksFromManifest(id: String) = id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")
-
     def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
@@ -778,19 +776,8 @@ object OpenSearchResponses {
             }else{
               Option.empty
             }
-            if (needsLinksFromManifest(id)) {
-              // All links will be filled in later. After old Products are dedupped away.
-              Feature(id, extent, nominalDate, Array.empty, resolution, tileID, Option(theGeometry), generalProperties = properties)
-            } else if (id.contains("COP-DEM_GLO")) {
-              val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
-            } else if (id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
-              Feature(id, extent, nominalDate, getLandsat8FilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
-            } else if (id.startsWith("/eodata/Sentinel-1-RTC")) {
-              Feature(id, extent, nominalDate, getSentinel1RTCFilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
-            } else {
-              Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
-            }
+            // All links will be filled in later. After old Products are dedupped away.
+            Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
           }
         }
       }
@@ -804,11 +791,19 @@ object OpenSearchResponses {
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
             featuresFiltered = featuresFiltered.map(f => {
-              if (needsLinksFromManifest(f.id)) {
-                val all_links = getFilePathsFromManifest(f.id)
-                if (!f.links.isEmpty) throw new Exception("Links should be empty at this point.")
-                f.copy(links = all_links.toArray)
-              } else f
+              val all_links = if (f.id.endsWith(".SAFE") || f.id.startsWith("/eodata/Sentinel-2/MSI/")) {
+                getFilePathsFromManifest(f.id).toArray
+              } else if (f.id.contains("COP-DEM_GLO")) {
+                val all_links = getDEMPathFromInspire(f.id)
+                all_links.toArray
+              } else if (f.id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
+                getLandsat8FilePaths(path = f.id).toArray
+              } else if (f.id.startsWith("/eodata/Sentinel-1-RTC")) {
+                getSentinel1RTCFilePaths(path = f.id).toArray
+              } else {
+                f.links
+              }
+              f.copy(links = all_links)
             })
             FeatureCollection(features.length, featuresFiltered)
           }
