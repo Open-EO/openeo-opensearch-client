@@ -45,35 +45,26 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
-//            HttpCache.synchronized
-            {
-              if (!Files.exists(path)) {
-                println("Caching request url: " + url)
-                try {
-                  Files.createDirectories(Paths.get(cachePath, basePath))
-                  val tmpBeforeAtomicMove = Paths.get(cachePath, "unconfirmed_download_" + UUID.randomUUID())
-                  val stream = openConnectionSuper(url).getInputStream
-                  try Files.copy(stream, tmpBeforeAtomicMove)
-                  finally stream.close() // might save in different encodings like EUC-KR, ISO-8859-1, utf-8, ascii
-                  Files.move(tmpBeforeAtomicMove, path)
-                  new FileInputStream(new File(path.toString))
-                }
-                catch {
-                  case e: java.io.FileNotFoundException if e.getMessage == url.toString =>
-                    // Those requests are not worth repeating
-                    println("Server returned 404 or 410: " + url)
-                    throw e
-                  case e: Throwable =>
-                    println("Caching error. Will retry without caching. " + e + "  " + e.getStackTraceString)
-                    // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
-                    openConnectionSuper(url).getInputStream
-                }
-              } else {
-                println("Using cached request thanks to lock") // In case the same request was made twice
-                println("Using cached request: " + path.toUri)
-                println("Using cached request url: " + url)
-                new FileInputStream(new File(path.toString))
-              }
+            // HttpCache.synchronized slows down too much. A FileAlreadyExistsException is recoverable
+            println("Caching request url: " + url)
+            try {
+              Files.createDirectories(Paths.get(cachePath, basePath))
+              val tmpBeforeAtomicMove = Paths.get(cachePath, "unconfirmed_download_" + UUID.randomUUID())
+              val stream = openConnectionSuper(url).getInputStream
+              try Files.copy(stream, tmpBeforeAtomicMove)
+              finally stream.close() // might save in different encodings like EUC-KR, ISO-8859-1, utf-8, ascii
+              Files.move(tmpBeforeAtomicMove, path)
+              new FileInputStream(new File(path.toString))
+            }
+            catch {
+              case e: java.io.FileNotFoundException if e.getMessage == url.toString =>
+                // Those requests are not worth repeating
+                println("Server returned 404 or 410: " + url)
+                throw e
+              case e: Throwable =>
+                println("Caching error. Will retry without caching. " + e + "  " + e.getStackTraceString)
+                // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
+                openConnectionSuper(url).getInputStream
             }
           } else {
             println("Using cached request: " + path.toUri)

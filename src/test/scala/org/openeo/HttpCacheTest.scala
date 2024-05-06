@@ -105,7 +105,6 @@ class HttpCacheTest {
       assertEquals(-119, content(0))
     })
     assertTrue(cachePath.exists())
-    // Extra: Check console log for "Using cached request thanks to lock"
   }
 
   @Test
