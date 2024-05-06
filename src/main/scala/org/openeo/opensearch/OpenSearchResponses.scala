@@ -756,6 +756,8 @@ object OpenSearchResponses {
       geometry
     }
 
+    def needsLinksFromManifest(id: String) = id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")
+
     def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
@@ -770,16 +772,14 @@ object OpenSearchResponses {
             val theGeometry = tryToMakeGeometryValid(ensureValidGeometry(geometry).toString().parseGeoJson[Geometry], Some(id))
             val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
-            val tileID = {
+            val tileID =
             if(tileIDMatcher.find()){
               Some(tileIDMatcher.group(1))
             }else{
               Option.empty
             }
-            }
-            if (id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")) {
-//              val all_links = getFilePathsFromManifest(id)
-//              logger.warn("all links: " + all_links.length)
+            if (needsLinksFromManifest(id)) {
+              // All links will be filled in later. After old Products are dedupped away.
               Feature(id, extent, nominalDate, Array.empty, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.contains("COP-DEM_GLO")) {
               val all_links = getDEMPathFromInspire(id)
@@ -804,9 +804,9 @@ object OpenSearchResponses {
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
             featuresFiltered = featuresFiltered.map(f => {
-              if (f.id.endsWith(".SAFE") || f.id.startsWith("/eodata/Sentinel-2/MSI/")) {
+              if (needsLinksFromManifest(f.id)) {
                 val all_links = getFilePathsFromManifest(f.id)
-                 if (!f.links.isEmpty) throw new Exception("links should be empty at this point")
+                if (!f.links.isEmpty) throw new Exception("Links should be empty at this point.")
                 f.copy(links = all_links.toArray)
               } else f
             })
