@@ -778,8 +778,8 @@ object OpenSearchResponses {
             }
 
             if (id.endsWith(".SAFE") || id.startsWith("/eodata/Sentinel-2/MSI/")) {
-              val all_links = getFilePathsFromManifest(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
+              // links will be filled in after deduplication
+              Feature(id, extent, nominalDate, Array.empty, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.contains("COP-DEM_GLO")) {
               val all_links = getDEMPathFromInspire(id)
               Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
@@ -799,9 +799,16 @@ object OpenSearchResponses {
           for {
             features <- c.downField("features").as[Array[Feature]]
           } yield {
-            val featuresFiltered =
+            var featuresFiltered =
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
+            featuresFiltered = featuresFiltered.map(f => {
+              if (f.id.endsWith(".SAFE") || f.id.startsWith("/eodata/Sentinel-2/MSI/")) {
+                val all_links = getFilePathsFromManifest(f.id)
+                if (!f.links.isEmpty) throw new Exception("links should be empty at this point")
+                f.copy(links = all_links.toArray)
+              } else f
+            })
             FeatureCollection(features.length, featuresFiltered)
           }
         }
