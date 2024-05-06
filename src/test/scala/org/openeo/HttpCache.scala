@@ -45,6 +45,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           // val cachePath = "src/test/resources/org/openeo/httpsCache" // Use this to cache files to git.
           val path = Paths.get(cachePath, filePath)
           if (!Files.exists(path)) {
+            // HttpCache.synchronized slows down too much. A FileAlreadyExistsException is recoverable
             println("Caching request url: " + url)
             try {
               Files.createDirectories(Paths.get(cachePath, basePath))

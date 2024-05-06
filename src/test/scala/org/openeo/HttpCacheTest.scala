@@ -4,7 +4,7 @@ import geotrellis.raster.geotiff.GeoTiffRasterSource
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
-import java.io.InputStream
+import java.io.{File, InputStream}
 import java.net.URL
 import scala.io.Source
 import scala.language.postfixOps
@@ -44,7 +44,7 @@ class HttpCacheTest {
     val t1 = System.currentTimeMillis()
     val difference = t1 - t0
     println("time difference: " + difference)
-    assertTrue(difference < 30) // genreally it takes 2ms, but taking some margin
+    assertTrue(difference < 30) // generally it takes 2ms, but taking some margin
     assertTrue(content.startsWith("<?xml"))
   }
 
@@ -85,10 +85,26 @@ class HttpCacheTest {
     val t1 = System.currentTimeMillis()
     val difference = t1 - t0
     println("time difference: " + difference)
-    assertTrue(difference < 30) // genreally it takes 2ms, but taking some margin
+    assertTrue(difference < 30) // generally it takes 2ms, but taking some margin
     assertEquals(-119, content(0))
     assertEquals(80, content(1))
     assertEquals(78, content(2))
+  }
+
+  @Test
+  def testParallel(): Unit = {
+    HttpCache.enabled = true
+    val url = "https://openeo.org/images/openeo_navbar_logo.png"
+
+    val cachePath = new File("""/\D:/""".r.replaceAllIn(getClass.getResource("/org/openeo/httpsCache/").getPath + "openeo.org/images/openeo_navbar_logo.png", "/"))
+    cachePath.delete()
+
+    Seq(url, url).par.foreach(url => {
+      val source = new URL(url).openStream()
+      val content = sourceToBytes(source)
+      assertEquals(-119, content(0))
+    })
+    assertTrue(cachePath.exists())
   }
 
   @Test
