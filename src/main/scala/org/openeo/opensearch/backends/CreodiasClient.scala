@@ -51,25 +51,27 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       // DEM has a big difference between beginDate and completionDate.
       // The temporal extent should span both dates, so we avoid doing this for DEM.
       // For Sentinel2, beginDate and completionDate look alike so this is no issue here.
-      def from(startDate: ZonedDateTime): Seq[Feature] = {
+      def from(startDate: ZonedDateTime): Seq[(ZonedDateTime, ZonedDateTime)] = {
         var endDate = startDate.plusYears(1)
         // begin < product < end. Products that fall exactly on beginning or end are excluded
         if (endDate.isAfter(dateRange.get._2)) {
           endDate = dateRange.get._2
         }
-        val features = getProductsOriginal(collectionId,
-          Some((startDate, endDate.plusNanos(1))), bbox,
-          attributeValues, correlationId,
-          processingLevel
-        )
+        val features = (startDate, endDate.plusNanos(1))
         if (endDate == dateRange.get._2 || endDate.isAfter(dateRange.get._2)) {
-          features
+          Seq(features)
         } else {
-          features ++ from(startDate.plusYears(1))
+          Seq(features) ++ from(startDate.plusYears(1))
         }
       }
 
-      from(dateRange.get._1)
+      from(dateRange.get._1).par.flatMap(range => {
+        getProductsOriginal(collectionId,
+          Some(range), bbox,
+          attributeValues, correlationId,
+          processingLevel
+        )
+      }).seq
     } else {
       getProductsOriginal(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
     }
