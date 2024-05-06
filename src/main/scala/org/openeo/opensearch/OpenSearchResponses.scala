@@ -135,15 +135,16 @@ object OpenSearchResponses {
       copy(generalProperties = GeneralProperties(published, orbitNumber, organisationName, instrument, processingBaseline))
 
     def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
-
-    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent, pixelValueOffset = pixelValueOffset)
+    def get_links(): Array[Link] = links
+    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , getLinks = get_links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent, pixelValueOffset = pixelValueOffset)
   }
 
-  case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
+  case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, getLinks: ()=> Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
                     ) {
+    lazy val links = getLinks()
     if (pixelValueOffset != 0.0) {
       // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
       throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
@@ -352,7 +353,7 @@ object OpenSearchResponses {
             }
 
 
-            Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
+            Feature(id, extent, nominalDate, () => links.values.flatten.toArray, res,
               tileId, geometry = geometry, crs = crs, generalProperties=properties)
           }
         }
@@ -400,7 +401,7 @@ object OpenSearchResponses {
               else{
                 Link(href, Some(t._1)) }
             }
-            Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
+            Feature(id, extent, nominalDate, () => harmonizedLinks.toArray, resolution, None, geometry = geometry,
               generalProperties=properties)
           }
         }
@@ -780,16 +781,16 @@ object OpenSearchResponses {
             }
             if (needsLinksFromManifest(id)) {
               // All links will be filled in later. After old Products are dedupped away.
-              Feature(id, extent, nominalDate, Array.empty, resolution, tileID, Option(theGeometry), generalProperties = properties)
+              Feature(id, extent, nominalDate, () => getFilePathsFromManifest(id).toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.contains("COP-DEM_GLO")) {
               val all_links = getDEMPathFromInspire(id)
-              Feature(id, extent, nominalDate, all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
+              Feature(id, extent, nominalDate, () => all_links.toArray, resolution, tileID, Option(theGeometry), generalProperties = properties)
             } else if (id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
-              Feature(id, extent, nominalDate, getLandsat8FilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
+              Feature(id, extent, nominalDate, () => getLandsat8FilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
             } else if (id.startsWith("/eodata/Sentinel-1-RTC")) {
-              Feature(id, extent, nominalDate, getSentinel1RTCFilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
+              Feature(id, extent, nominalDate, () => getSentinel1RTCFilePaths(path = id).toArray, resolution, tileID, Some(theGeometry), generalProperties = properties)
             } else {
-              Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
+              Feature(id, extent, nominalDate, () => links, resolution, tileID, Option(theGeometry), generalProperties = properties)
             }
           }
         }
@@ -803,13 +804,6 @@ object OpenSearchResponses {
             var featuresFiltered =
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
-            featuresFiltered = featuresFiltered.map(f => {
-              if (needsLinksFromManifest(f.id)) {
-                val all_links = getFilePathsFromManifest(f.id)
-                if (!f.links.isEmpty) throw new Exception("Links should be empty at this point.")
-                f.copy(links = all_links.toArray)
-              } else f
-            })
             FeatureCollection(features.length, featuresFiltered)
           }
         }

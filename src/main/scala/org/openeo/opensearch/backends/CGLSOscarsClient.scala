@@ -24,9 +24,8 @@ class CGLSOscarsClient(override  val endpoint: URL, val bands: util.List[String]
         }else{
           Some(l)
         }
-
       })
-      f.copy(links = newLinks)
+      f.copy(getLinks = () => newLinks)
     })
   }
 }
