@@ -62,7 +62,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
         .flatMap { case (date, path) => bands.asScala.map(v => (date, path, GDALRasterSource(s"""NETCDF:"$path":$v""", GDALWarpOptions(alignTargetPixels = false)))) }
 
       val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map { case (date: ZonedDateTime, path: String, source: GDALRasterSource) =>
-        OpenSearchResponses.Feature(s"${path}", source.extent, date, () => bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width), None,crs=Some(source.crs),rasterExtent = Some(source.gridExtent.extent))
+        OpenSearchResponses.Feature(s"${path}", source.extent, date, bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(source.gridExtent.cellSize.width), None,crs=Some(source.crs),rasterExtent = Some(source.gridExtent.extent))
       }
 
       OpenSearchResponses.dedupFeatures(features).toSeq
@@ -71,7 +71,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
         .flatMap { case (date, path) => bands.asScala.map(v => (date, path)) }
 
       val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map { case (date: ZonedDateTime, path: String) =>
-        OpenSearchResponses.Feature(s"${path}", gridExtent.get.extent, date, () => bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(gridExtent.get.cellSize.width), None,geometry=None,crs=Some(LatLng),rasterExtent = Some(gridExtent.get.extent))
+        OpenSearchResponses.Feature(s"${path}", gridExtent.get.extent, date, bands.asScala.map(v => Link(URI.create(s"""NETCDF:$path:$v"""), Some(v))).toArray, Some(gridExtent.get.cellSize.width), None,geometry=None,crs=Some(LatLng),rasterExtent = Some(gridExtent.get.extent))
       }
 
       OpenSearchResponses.dedupFeatures(features).toSeq
@@ -86,7 +86,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
       "globalnetcdf:" + dataGlob,
       worldExtent,
       ZonedDateTime.parse("2020-01-01T00:00:00Z"),
-      () => Array(),
+      Array(),
       Option.empty,
       None,
       geometry=Some(worldExtent.toPolygon()),
