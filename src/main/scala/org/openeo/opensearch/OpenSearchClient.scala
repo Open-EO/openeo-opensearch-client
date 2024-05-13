@@ -23,7 +23,7 @@ object OpenSearchClient {
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
   private val requestCounter = new AtomicLong
 
-  def apply(endpoint: URL, isUTM: Boolean = false, clientType: String = ""):OpenSearchClient = {
+  def apply(endpoint: URL, isUTM: Boolean = false, clientType: String = "", allowParallelQuery: Boolean = false): OpenSearchClient = {
     if (clientType != "") {
       clientType.toLowerCase() match {
         case "stac" => new STACClient(endpoint, false)
@@ -36,7 +36,7 @@ object OpenSearchClient {
       // Guess Catalog Type using URL.
       endpoint.toString match {
         case s if s.contains("creo") => new CreodiasClient(endpoint)
-        case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => new CreodiasClient(endpoint)
+        case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => new CreodiasClient(endpoint, allowParallelQuery)
         case s if s.contains("aws") => new STACClient(endpoint)
         case s if s.contains("c-scale") => new STACClient(endpoint, false)
         case _ => new OscarsClient(endpoint, isUTM)
@@ -65,13 +65,13 @@ object OpenSearchClient {
    *  @return An OpenSearchClient.
    *  @throws IllegalArgumentException if the catalogType is unknown.
    */
-  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], clientType: String): OpenSearchClient = {
+  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], clientType: String, allowParallelQuery: Boolean): OpenSearchClient = {
     clientType match {
       case "cgls_oscars" => new CGLSOscarsClient(new URL(endpoint), bands)
       case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "globspatialonly" => new GeotiffNoDateSearchClient(endpoint, bands)
-      case _ => apply(new URL(endpoint), isUTM, clientType)
+      case _ => apply(new URL(endpoint), isUTM, clientType, allowParallelQuery)
     }
   }
 }

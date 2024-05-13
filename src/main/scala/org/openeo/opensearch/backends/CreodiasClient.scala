@@ -33,7 +33,8 @@ object CreodiasClient{
   }
 }
 
-class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto")) extends OpenSearchClient {
+class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto"),
+                     allowParallelQuery: Boolean = false) extends OpenSearchClient {
   import CreodiasClient._
 
   require(endpoint != null)
@@ -45,9 +46,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
-    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto")
-      && collectionId == "Sentinel2"
-      && dateRange.isDefined) {
+    if (allowParallelQuery && dateRange.isDefined) {
       // DEM has a big difference between beginDate and completionDate.
       // The temporal extent should span both dates, so we avoid doing this for DEM.
       // For Sentinel2, beginDate and completionDate look alike so this is no issue here.
