@@ -45,6 +45,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
+    // More documentation on how to query: https://documentation.dataspace.copernicus.eu/APIs/OData.html
     if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto")
       && collectionId == "Sentinel2"
       && dateRange.isDefined) {
