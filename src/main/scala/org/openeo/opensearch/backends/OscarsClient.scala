@@ -62,8 +62,11 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
                                      processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
-    val newAttributeValues = collection.mutable.Map(attributeValues.toSeq: _*)
-    newAttributeValues.getOrElseUpdate("accessedFrom", "MEP") // get direct access links instead of download urls
+    val propagatableAttributeValues =
+      (attributeValues + ("accessedFrom" -> "MEP")) // get direct access links instead of download urls
+        .filterNot { case (key, _) =>
+          Seq("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state") contains key
+        }
 
     val coordinateFormat = new DecimalFormat("0.#######", DecimalFormatSymbols.getInstance(Locale.ROOT))
 
@@ -72,7 +75,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
       .param("bbox", Array(xMin, yMin, xMax, yMax).map(coordinateFormat.format) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
-      .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
+      .params(propagatableAttributeValues.mapValues(_.toString).toMap)
       .param("clientId", clientId(correlationId))
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
@@ -93,6 +96,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
 
     val json = execute(getProducts)
     val resultCollection = FeatureCollection.parse(json, isUTM, dedup = true)
+    // TODO: filter by list of tileId
     if(dateRange.isDefined) {
       val dates = dateRange.get
       //oscars actually manages to return features that are outside of the daterange for coherence
