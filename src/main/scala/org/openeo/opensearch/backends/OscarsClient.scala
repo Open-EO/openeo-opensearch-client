@@ -121,7 +121,10 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
     tileIdValue match {
       case Some(tileIds: java.util.List[String]) => featureCollection.copy(
         features = featureCollection.features.filter { feature =>
-          tileIds contains feature.tileID
+          feature.tileID match {
+            case Some(tileId) => tileIds contains tileId
+            case _ => false
+          }
         })
       case _ => featureCollection
     }
