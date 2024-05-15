@@ -22,7 +22,7 @@ class OscarsClientTest {
 
   @Test
   def testGDMP(): Unit = {
-    val openSearch = OpenSearchClient("https://globalland.vito.be/catalogue",false,"",Collections.singletonList("GDMP"),"cgls_oscars")
+    val openSearch = OpenSearchClient("https://globalland.vito.be/catalogue",false,"",Collections.singletonList("GDMP"),"cgls_oscars", false)
     val collections = openSearch.getCollections("testGDMP")
     assert(collections.length > 10) // by default a page is 100
     val unique = collections.map(_.id).toSet

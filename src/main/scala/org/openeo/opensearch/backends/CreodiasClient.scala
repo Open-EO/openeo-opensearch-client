@@ -34,7 +34,7 @@ object CreodiasClient{
 }
 
 class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto"),
-                     allowParallelQuery: Boolean = false) extends OpenSearchClient {
+                     val allowParallelQuery: Boolean = false) extends OpenSearchClient {
   import CreodiasClient._
 
   require(endpoint != null)
@@ -202,12 +202,12 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
 
   override final def equals(other: Any): Boolean = other match {
-    case that: CreodiasClient => this.endpoint == that.endpoint
+    case that: CreodiasClient => this.endpoint == that.endpoint && this.allowParallelQuery == that.allowParallelQuery
     case _ => false
   }
 
   override final def hashCode(): Int = {
-    val state = Seq(endpoint)
+    val state = Seq(endpoint, allowParallelQuery)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
