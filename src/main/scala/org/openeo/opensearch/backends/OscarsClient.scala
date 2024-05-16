@@ -62,8 +62,13 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
                                      processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
-    val newAttributeValues = collection.mutable.Map(attributeValues.toSeq: _*)
-    newAttributeValues.getOrElseUpdate("accessedFrom", "MEP") // get direct access links instead of download urls
+    val propagatableAttributeValues =
+      (attributeValues + ("accessedFrom" -> "MEP")) // get direct access links instead of download urls
+        .filter {
+          case ("tileId", value) => value.isInstanceOf[String] // filter by single tileId (server side)
+          case (attribute, _) => !(Seq("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state")
+            contains attribute)
+        }
 
     val coordinateFormat = new DecimalFormat("0.#######", DecimalFormatSymbols.getInstance(Locale.ROOT))
 
@@ -72,7 +77,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
       .param("bbox", Array(xMin, yMin, xMax, yMax).map(coordinateFormat.format) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
-      .params(newAttributeValues.mapValues(_.toString).filterKeys(!Seq( "eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state").contains(_)).toSeq)
+      .params(propagatableAttributeValues.mapValues(_.toString).toMap)
       .param("clientId", clientId(correlationId))
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
@@ -92,16 +97,37 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false) extends OpenSe
     }
 
     val json = execute(getProducts)
-    val resultCollection = FeatureCollection.parse(json, isUTM, dedup = true)
-    if(dateRange.isDefined) {
-      val dates = dateRange.get
-      //oscars actually manages to return features that are outside of the daterange for coherence
-      val features = resultCollection.features.filter(f=>f.nominalDate.isEqual(dates._1) || (f.nominalDate.isAfter(dates._1) && (f.nominalDate.isBefore(dates._2) || (dates._1 isEqual dates._2) ) ))
-      FeatureCollection(resultCollection.itemsPerPage,features)
-    }else{
-      resultCollection
-    }
 
+    val resultCollection = FeatureCollection.parse(json, isUTM, dedup = true)
+
+    filterByDateRange(
+      filterByTileIds(resultCollection, attributeValues.get("tileId")), dateRange)
+  }
+
+  private def filterByDateRange(featureCollection: FeatureCollection,
+                                dateRangeValue: Option[(ZonedDateTime, ZonedDateTime)]): FeatureCollection = {
+    //oscars actually manages to return features that are outside of the daterange for coherence
+    dateRangeValue match {
+      case Some((from, until)) => featureCollection.copy(features = featureCollection.features.filter { feature =>
+        feature.nominalDate.isEqual(from) || (feature.nominalDate.isAfter(from) &&
+          (feature.nominalDate.isBefore(until) || (from isEqual until)))
+      })
+      case _ => featureCollection
+    }
+  }
+
+  private def filterByTileIds(featureCollection: FeatureCollection, tileIdValue: Option[Any]): FeatureCollection = {
+    // filter by multiple tileIds (client side)
+    tileIdValue match {
+      case Some(tileIds: java.util.List[String]) => featureCollection.copy(
+        features = featureCollection.features.filter { feature =>
+          feature.tileID match {
+            case Some(tileId) => tileIds contains tileId
+            case _ => false
+          }
+        })
+      case _ => featureCollection
+    }
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
