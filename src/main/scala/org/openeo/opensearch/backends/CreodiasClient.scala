@@ -33,7 +33,8 @@ object CreodiasClient{
   }
 }
 
-class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto")) extends OpenSearchClient {
+class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto"),
+                     val allowParallelQuery: Boolean = false) extends OpenSearchClient {
   import CreodiasClient._
 
   require(endpoint != null)
@@ -45,10 +46,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
-    // More documentation on how to query: https://documentation.dataspace.copernicus.eu/APIs/OData.html
-    if (this.endpoint.toString.contains("catalogue.dataspace.copernicus.eu/resto")
-      && collectionId == "Sentinel2"
-      && dateRange.isDefined) {
+    if (allowParallelQuery && dateRange.isDefined) {
       // DEM has a big difference between beginDate and completionDate.
       // The temporal extent should span both dates, so we avoid doing this for DEM.
       // For Sentinel2, beginDate and completionDate look alike so this is no issue here.
@@ -204,12 +202,12 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
 
   override final def equals(other: Any): Boolean = other match {
-    case that: CreodiasClient => this.endpoint == that.endpoint
+    case that: CreodiasClient => this.endpoint == that.endpoint && this.allowParallelQuery == that.allowParallelQuery
     case _ => false
   }
 
   override final def hashCode(): Int = {
-    val state = Seq(endpoint)
+    val state = Seq(endpoint, allowParallelQuery)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
