@@ -74,6 +74,10 @@ object OpenSearchClient {
       case _ => apply(new URL(endpoint), isUTM, clientType, allowParallelQuery)
     }
   }
+
+  def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], clientType: String): OpenSearchClient = {
+    apply(endpoint, isUTM, dateRegex, bands, clientType, allowParallelQuery = false)
+  }
 }
 
 abstract class OpenSearchClient {
