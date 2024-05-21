@@ -269,21 +269,10 @@ object OpenSearchResponses {
 
     val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
       val selectedElement = features.maxBy(_.generalProperties.published)
-      val toBeRemoved = features.filter(_ != selectedElement)
-      val toLog = if (toBeRemoved.nonEmpty)
-        ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
-          + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
-      else
-        ""
-      (key, selectedElement, toLog)
+      (key, selectedElement)
     })
 
-    val msg = featuresGroupedFiltered
-      .map({ case (_, _, toLog) => toLog })
-      .filter(_ != "")
-      .mkString("\n")
-    if (msg.nonEmpty) logger.info(msg)
-    val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toSet
+    val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement) => selectedElement }).toSet
 
     // Make sure the order is as it was before the dedup
     features.flatMap(f => if (featuresFiltered.contains(f)) List(f) else List())
