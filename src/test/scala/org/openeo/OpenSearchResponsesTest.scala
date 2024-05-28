@@ -1,7 +1,7 @@
 package org.openeo
 
 import geotrellis.proj4.{CRS, LatLng}
-import geotrellis.vector.Extent
+import geotrellis.vector.{Extent, Polygon}
 import org.junit.Assert._
 import org.junit.Test
 import org.openeo.TestHelpers.loadJsonResource
@@ -16,7 +16,15 @@ class OpenSearchResponsesTest {
 
   @Test
   def testFeatureBuilder():Unit = {
-    val f = OpenSearchResponses.FeatureBuilder().withBBox(0,0,10,10).withId("id").withNominalDate("2021-01-01T00:00:00Z").addLink("url","title",0.0,java.util.Arrays.asList("B01","B02")).withCRS("EPSG:32631").build()
+    val f = OpenSearchResponses.FeatureBuilder()
+      .withBBox(0, 0, 10, 10)
+      .withId("id")
+      .withNominalDate("2021-01-01T00:00:00Z")
+      .addLink("url", "title", 0.0, java.util.Arrays.asList("B01","B02"))
+      .withCRS("EPSG:32631")
+      .withGeometryFromWkt("POLYGON ((0 0, 0 10, 10 10, 10 0, 0 0))")
+      .build()
+
     assertEquals("id",f.id)
     assertEquals(Extent(0,0,10,10),f.bbox)
     assertEquals(ZonedDateTime.parse("2021-01-01T00:00:00Z"),f.nominalDate)
@@ -25,6 +33,7 @@ class OpenSearchResponsesTest {
     assertEquals("title",f.links(0).title.get)
     assertEquals(0.0,f.links(0).pixelValueOffset.get,0.0)
     assertEquals("EPSG:32631",f.crs.get.toString())
+    assertEquals(Some(Extent(0, 0, 10, 10).toPolygon()), f.geometry)
   }
 
   @Test
