@@ -125,7 +125,9 @@ object OpenSearchResponses {
     }
 
     def withTileId(tileId:String): FeatureBuilder = copy(tileID=Some(tileId))
-    def withGeometry(geometry:Geometry): FeatureBuilder = copy(geometry=Some(geometry))
+
+    def withGeometry(geometry: Geometry): FeatureBuilder = copy(geometry = Some(geometry))
+    def withGeometryFromWkt(geometryWkt: String): FeatureBuilder = withGeometry(geometryWkt.parseWKT())
 
     def withCRS(crs:String): FeatureBuilder = copy(crs=Some(CRS.fromName(crs)))
 
