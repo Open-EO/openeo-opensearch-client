@@ -95,8 +95,7 @@ object OpenSearchResponses {
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-
-                                    var pixelValueOffset: Double = 0    )  {
+                                   ) {
 
     def withId(id:String): FeatureBuilder = copy(id=id)
     def withBBox(minx:Double,miny:Double,maxx:Double,maxy:Double): FeatureBuilder = copy(bbox=Extent(minx,miny,maxx,maxy))
@@ -138,19 +137,14 @@ object OpenSearchResponses {
 
     def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
 
-    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent, pixelValueOffset = pixelValueOffset)
+    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
-                     var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
                     ) {
-    if (pixelValueOffset != 0.0) {
-      // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
-      throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
-    }
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -274,18 +268,23 @@ object OpenSearchResponses {
       val selectedElement = features.maxBy(_.deduplicationOrderValue)
       val toBeRemoved = features.filter(_ != selectedElement)
       val toLog = if (toBeRemoved.nonEmpty)
-        ("Removing duplicated feature(s): " + toBeRemoved.map("'" + _.id + "'").mkString(", ")
-          + ". Keeping the Latest published one: '" + selectedElement.id) + "'"
+        ("Removing duplicated feature(s): "
+          + toBeRemoved.map(f => "id=" + f.id + "' deduplicationOrderValue='"
+          + f.deduplicationOrderValue.getOrElse("") + "'").mkString(", ")
+          + ". Keeping the Latest published one: id=" + selectedElement.id + "' deduplicationOrderValue='"
+          + selectedElement.deduplicationOrderValue.getOrElse("") + "'")
       else
         ""
       (key, selectedElement, toLog)
     })
 
-    val msg = featuresGroupedFiltered
-      .map({ case (_, _, toLog) => toLog })
-      .filter(_ != "")
-      .mkString("\n")
-    if (msg.nonEmpty) logger.info(msg) // TODO: Heavy logging, can remove after October 2024
+    if (logger.isDebugEnabled) {
+      val msg = featuresGroupedFiltered
+        .map({ case (_, _, toLog) => toLog })
+        .filter(_ != "")
+        .mkString("\n")
+      if (msg.nonEmpty) logger.debug(msg)
+    }
     val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toSet
 
     // Make sure the order is as it was before the dedup

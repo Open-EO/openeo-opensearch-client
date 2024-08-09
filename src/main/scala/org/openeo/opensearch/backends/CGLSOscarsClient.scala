@@ -9,8 +9,8 @@ import java.time.ZonedDateTime
 import java.util
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
-class CGLSOscarsClient(override  val endpoint: URL, val bands: util.List[String]) extends OscarsClient(endpoint,false) {
-
+class CGLSOscarsClient(override val endpoint: URL, val bands: util.List[String]) extends OscarsClient(
+  endpoint, false, deduplicationPropertyJsonPath = "properties.productInformation.productGroupId") {
 
   override def getProducts(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String): Seq[OpenSearchResponses.Feature] = {
 

@@ -40,7 +40,7 @@ class OscarsClientTest {
     assert(collections.length > 10) // by default a page is 100
     val unique = collections.map(_.id).toSet
     assertEquals(collections.length, unique.size) // assure no duplicates
-    print(collections)
+    println(collections)
 
     val features = openSearch.getProducts(
       collectionId = "clms_global_gdmp_300m_v1_10daily_netcdf",
@@ -52,8 +52,7 @@ class OscarsClientTest {
     assertEquals(Some(LatLng),features.head.crs)
     assertEquals(Some(0.00297619047620),features.head.resolution)
     val actual = features.head.links.head.href.toString
-      .replace("-RT5_", "-RT2_")
-    assertEquals("NETCDF:/data/MTDA/Copernicus/Land/global/netcdf/dry_matter_productivity/gdmp_300m_v1_10daily/2018/20180810/c_gls_GDMP300-RT2_201808100000_GLOBE_PROBAV_V1.0.1.nc:GDMP", actual)
+    assertEquals("NETCDF:/data/MTDA/Copernicus/Land/global/netcdf/dry_matter_productivity/gdmp_300m_v1_10daily/2018/20180810/c_gls_GDMP300-RT5_201808100000_GLOBE_PROBAV_V1.0.1.nc:GDMP", actual)
   }
 
   @Test
