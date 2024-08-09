@@ -317,26 +317,26 @@ object OpenSearchResponses {
             val geometry = c.downField("geometry").as[Geometry].toOption
             val prefix = "https://www.opengis.net/def/crs/EPSG/0/"
             val crs =
-              if (isUTM && tileId.isEmpty) {
-                //this is ugly, but not having a crs is worse, should be fixed in the catalogs
-                Some(UTM.getZoneCrs(extent.center.x, extent.center.y))
-              } else {
-                if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
-                  try {
-                    val epsg = maybeCRS.get.substring(prefix.length)
-                    Some(CRS.fromEpsgCode(epsg.toInt))
+            if(isUTM && tileId.isEmpty){
+              //this is ugly, but not having a crs is worse, should be fixed in the catalogs
+              Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
+            }else {
+              if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
+                try {
+                  val epsg = maybeCRS.get.substring(prefix.length)
+                  Some(CRS.fromEpsgCode(epsg.toInt))
 
-                  } catch {
-                    case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
-                      None
-                  }
-                } else if (tileId.contains("GLOBE")) {
-                  //CGLS specific convention to set tileId to 'GLOBE'
-                  Some(LatLng)
-                } else {
-                  None
+                }catch {
+                  case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
+                    None
                 }
+              }else if(tileId.contains("GLOBE")){
+                //CGLS specific convention to set tileId to 'GLOBE'
+                Some(LatLng)
+              } else {
+                None
               }
+            }
 
             var res = resolution
             if (res.isEmpty) {

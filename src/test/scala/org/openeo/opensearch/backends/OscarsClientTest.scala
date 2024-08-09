@@ -101,7 +101,7 @@ class OscarsClientTest {
     assert(collections.length > 100) // by default a page is 100
     val unique = collections.map(_.id).toSet
     assertEquals(collections.length, unique.size) // assure no duplicates
-    print(collections)
+    println(collections)
   }
 
   @ParameterizedTest
