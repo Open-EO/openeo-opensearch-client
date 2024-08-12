@@ -13,8 +13,15 @@ import java.time.{LocalDate, ZonedDateTime}
 import java.util.Locale
 import scala.collection.Map
 
-class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val removeDuplicates: Boolean = true) extends OpenSearchClient {
+/**
+ *
+ * @param endpoint
+ * @param isUTM
+ * @param deduplicationPropertyJsonPath When removing duplicates, the code will keep products where this property has the highest value.
+ */
+class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicationPropertyJsonPath: String = "properties.published") extends OpenSearchClient {
   require(endpoint != null)
+  require(deduplicationPropertyJsonPath != null)
 
   def getStartAndEndDate(collectionId: String, attributeValues: Map[String, Any] = Map()): Option[(LocalDate, LocalDate)] = {
     def getFirstProductWithSortKey(key: String) = {
@@ -98,7 +105,12 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val removeDupl
 
     val json = execute(getProducts)
 
-    val resultCollection = FeatureCollection.parse(json, isUTM, dedup = removeDuplicates)
+    val resultCollection = FeatureCollection.parse(
+      json,
+      isUTM,
+      dedup = true,
+      deduplicationPropertyJsonPath = deduplicationPropertyJsonPath
+    )
 
     filterByDateRange(
       filterByTileIds(resultCollection, attributeValues.get("tileId")), dateRange)
@@ -156,12 +168,12 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val removeDupl
   override final def equals(other: Any): Boolean = other match {
     case that: OscarsClient => this.endpoint == that.endpoint &&
       this.isUTM == that.isUTM &&
-      this.removeDuplicates == that.removeDuplicates
+      this.deduplicationPropertyJsonPath == that.deduplicationPropertyJsonPath
     case _ => false
   }
 
   override final def hashCode(): Int = {
-    val state = Seq(endpoint, isUTM, removeDuplicates)
+    val state = Seq(endpoint, isUTM, deduplicationPropertyJsonPath)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

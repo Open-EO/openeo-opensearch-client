@@ -6,7 +6,7 @@ import cats.syntax.show._
 import geotrellis.proj4.util.UTM
 import geotrellis.proj4.{CRS, LatLng}
 import io.circe.generic.auto._
-import io.circe.{Decoder, HCursor, Json, JsonObject}
+import io.circe.{ACursor, Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
@@ -95,8 +95,7 @@ object OpenSearchResponses {
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-
-                                    var pixelValueOffset: Double = 0    )  {
+                                   ) {
 
     def withId(id:String): FeatureBuilder = copy(id=id)
     def withBBox(minx:Double,miny:Double,maxx:Double,maxy:Double): FeatureBuilder = copy(bbox=Extent(minx,miny,maxx,maxy))
@@ -138,18 +137,14 @@ object OpenSearchResponses {
 
     def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
 
-    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent, pixelValueOffset = pixelValueOffset)
+    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent)
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
-                     var pixelValueOffset: Double = 0, // Backwards compatibility. Can probably be removed after openeo-geotrelis-extensions>s2_offset is merged
+                     deduplicationOrderValue: Option[String] = None,
                     ) {
-    if (pixelValueOffset != 0.0) {
-      // https://github.com/Open-EO/openeo-geotrellis-extensions/issues/172
-      throw new IllegalArgumentException("Use per band based pixelValueOffset instead!")
-    }
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
       utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
@@ -270,11 +265,27 @@ object OpenSearchResponses {
     }
 
     val featuresGroupedFiltered = dupClusters.map({ case (key, features) =>
-      val selectedElement = features.maxBy(_.generalProperties.published)
-      (key, selectedElement)
+      val selectedElement = features.maxBy(_.deduplicationOrderValue)
+      val toBeRemoved = features.filter(_ != selectedElement)
+      val toLog = if (toBeRemoved.nonEmpty)
+        ("Removing duplicated feature(s): "
+          + toBeRemoved.map(f => "id=" + f.id + "' deduplicationOrderValue='"
+          + f.deduplicationOrderValue.getOrElse("") + "'").mkString(", ")
+          + ". Keeping one with highest deduplicationOrderValue: id=" + selectedElement.id + "' deduplicationOrderValue='"
+          + selectedElement.deduplicationOrderValue.getOrElse("") + "'")
+      else
+        ""
+      (key, selectedElement, toLog)
     })
 
-    val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement) => selectedElement }).toSet
+    if (logger.isDebugEnabled) {
+      val msg = featuresGroupedFiltered
+        .map({ case (_, _, toLog) => toLog })
+        .filter(_ != "")
+        .mkString("\n")
+      if (msg.nonEmpty) logger.debug(msg)
+    }
+    val featuresFiltered = featuresGroupedFiltered.map({ case (_, selectedElement, _) => selectedElement }).toSet
 
     // Make sure the order is as it was before the dedup
     features.flatMap(f => if (featuresFiltered.contains(f)) List(f) else List())
@@ -288,7 +299,7 @@ object OpenSearchResponses {
     /**
      * Should only dedup when getting Products. Not when getting collections
      */
-    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false): FeatureCollection = {
+    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published"): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -335,16 +346,33 @@ object OpenSearchResponses {
 
             if (tileId.contains("GLOBE")) {
               //CGLS sets resolution in meter while it's in fact degrees
-              if(res.contains(300)){
+              if (res.contains(300)) {
                 res = Some(0.00297619047620)
-              }else if(res.contains(1000)){
+              } else if (res.contains(1000)) {
                 res = Some(0.00892857142857)
               }
             }
 
+            // Find deduplicationOrderValue by going down the JSON path:
+            val deduplicationOrderValue = if (dedup) {
+              val tmp = {
+                val jPathParts = deduplicationPropertyJsonPath.split('.').toList
+                var current: ACursor = c
+                for (part <- jPathParts) {
+                  current = current.downField(part)
+                }
+                current.as[String].toOption
+              }
+              if (tmp.isEmpty) {
+                logger.warn(s"Could not find JSON path '$deduplicationPropertyJsonPath' for feature '$id'")
+              }
+              tmp
+            } else None
 
             Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
-              tileId, geometry = geometry, crs = crs, generalProperties=properties)
+              tileId, geometry = geometry, crs = crs, generalProperties=properties,
+              deduplicationOrderValue=deduplicationOrderValue,
+            )
           }
         }
       }
@@ -757,6 +785,7 @@ object OpenSearchResponses {
             links <- c.downField("properties").downField("links").as[Array[Link]]
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
+            deduplicationOrderValue = c.downField("properties").downField("published").as[String].toOption
           } yield {
             val theGeometry = tryToMakeGeometryValid(ensureValidGeometry(geometry).toString().parseGeoJson[Geometry], Some(id))
             val extent = theGeometry.extent
@@ -768,7 +797,10 @@ object OpenSearchResponses {
               Option.empty
             }
             // All links will be filled in later. After old Products are dedupped away.
-            Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry), generalProperties = properties)
+            Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry),
+              generalProperties = properties,
+              deduplicationOrderValue = deduplicationOrderValue,
+            )
           }
         }
       }
