@@ -271,7 +271,7 @@ object OpenSearchResponses {
         ("Removing duplicated feature(s): "
           + toBeRemoved.map(f => "id=" + f.id + "' deduplicationOrderValue='"
           + f.deduplicationOrderValue.getOrElse("") + "'").mkString(", ")
-          + ". Keeping the Latest published one: id=" + selectedElement.id + "' deduplicationOrderValue='"
+          + ". Keeping one with highest deduplicationOrderValue: id=" + selectedElement.id + "' deduplicationOrderValue='"
           + selectedElement.deduplicationOrderValue.getOrElse("") + "'")
       else
         ""
