@@ -813,6 +813,17 @@ object OpenSearchResponses {
             var featuresFiltered =
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
+
+            val corruptTileProductIdentifiers =
+              Seq("/eodata/Sentinel-2/MSI/L2A_N0500/2018/03/27/S2A_MSIL2A_20180327T114351_N0500_R123_T29UMV_20230828T122340.SAFE")
+
+            featuresFiltered = featuresFiltered
+              .filterNot { feature =>
+                val isCorrupt = corruptTileProductIdentifiers contains feature.id
+                if (isCorrupt) logger.warn(s"omitting corrupt tile ${feature.id}")
+                isCorrupt
+              }
+
             featuresFiltered = featuresFiltered.map(f => {
               val all_links = if (f.id.endsWith(".SAFE") || f.id.startsWith("/eodata/Sentinel-2/MSI/")) {
                 getFilePathsFromManifest(f.id).toArray

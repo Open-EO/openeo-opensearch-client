@@ -1,6 +1,6 @@
 package org.openeo.opensearch
 
-import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
@@ -189,5 +189,24 @@ class CreoFeatureCollectionTest {
     )
 
     assertTrue(expectedLinkTitles.forall(expectedTitle => feature.links.exists(_.title contains expectedTitle)))
+  }
+
+  @Test
+  def corruptTileIsOmitted(): Unit = {
+    val productsResponse = loadJsonResource("creodiasCorruptTile.json")
+
+    val corruptTileProductIdentifier =
+      "/eodata/Sentinel-2/MSI/L2A_N0500/2018/03/27/S2A_MSIL2A_20180327T114351_N0500_R123_T29UMV_20230828T122340.SAFE"
+
+    assertTrue(productsResponse contains corruptTileProductIdentifier,
+      s"expected corrupt tile $corruptTileProductIdentifier in response")
+
+    val FeatureCollection(_, features) = CreoFeatureCollection.parse(productsResponse, dedup = true)
+
+    assertTrue(features.nonEmpty, "no features at all")
+    val featureIds = features.map(_.id)
+
+    assertTrue(featureIds.forall(_.startsWith("/eodata/Sentinel-2")), "unexpected product identifiers")
+    assertFalse(featureIds contains corruptTileProductIdentifier, "corrupt tile is still present")
   }
 }
