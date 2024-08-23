@@ -750,6 +750,16 @@ object OpenSearchResponses {
       suffixes.map(s=>Link(URI.create(s"${getGDALPrefix(path)}$path/${prefix}_$s.tif"),Some(s)))
     }
 
+    private def getGlobalMosaicsSentinel1FilePaths(path: String): Seq[Link] = {
+      val bandNames =
+        if (path contains "_IW_") Seq("VH", "VV")
+        else if (path contains "_DH_") Seq("HH", "HV")
+        else throw new IllegalArgumentException(path)
+
+      bandNames
+        .map(bandName => Link(URI.create(s"${getGDALPrefix(path)}$path/$bandName.tif"), title = Some(bandName)))
+    }
+
     private def ensureValidGeometry(geometry: Json): Json = {
       // TODO: This is required because the old Creodias API can return incorrect MultiPolygon geometries.
       // This can be removed once the API is fixed.
@@ -834,6 +844,8 @@ object OpenSearchResponses {
                 getLandsat8FilePaths(path = f.id).toArray
               } else if (f.id.startsWith("/eodata/Sentinel-1-RTC")) {
                 getSentinel1RTCFilePaths(path = f.id).toArray
+              } else if (f.id.startsWith("/eodata/Global-Mosaics/Sentinel-1")) {
+                getGlobalMosaicsSentinel1FilePaths(path = f.id).toArray
               } else {
                 f.links
               }
