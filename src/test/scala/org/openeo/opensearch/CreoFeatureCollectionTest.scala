@@ -7,7 +7,6 @@ import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.TestHelpers.loadJsonResource
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection}
 
-import java.net.URI
 import java.time.ZonedDateTime
 import java.util.stream.{Stream => JStream}
 
