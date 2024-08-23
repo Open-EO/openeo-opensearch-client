@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.TestHelpers.loadJsonResource
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection}
 
+import java.net.URI
 import java.time.ZonedDateTime
 import java.util.stream.{Stream => JStream}
 
@@ -208,5 +209,24 @@ class CreoFeatureCollectionTest {
 
     assertTrue(featureIds.forall(_.startsWith("/eodata/Sentinel-2")), "unexpected product identifiers")
     assertFalse(featureIds contains corruptTileProductIdentifier, "corrupt tile is still present")
+  }
+
+  @Test
+  def globalMosaicsSentinel1Response(): Unit = {
+    val productsResponse = loadJsonResource("creodiasGlobalMosaicsSentinel1.json")
+
+    val FeatureCollection(_, features) = CreoFeatureCollection.parse(productsResponse, dedup = true)
+
+    val titledHrefs = for {
+      feature <- features
+      link <- feature.links
+    } yield (link.title, link.href.toString)
+
+    val expected = Set(
+      (Some("VV"), "/eodata/Global-Mosaics/Sentinel-1/S1SAR_L3_IW_MCM/2023/12/01/Sentinel-1_IW_mosaic_2023_M12_50SMC_0_0/VV.tif"),
+      (Some("VH"), "/eodata/Global-Mosaics/Sentinel-1/S1SAR_L3_IW_MCM/2023/12/01/Sentinel-1_IW_mosaic_2023_M12_50SMC_0_0/VH.tif"),
+    )
+
+    assertEquals(expected, titledHrefs.toSet)
   }
 }
