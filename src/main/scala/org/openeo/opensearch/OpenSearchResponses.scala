@@ -840,7 +840,7 @@ object OpenSearchResponses {
               } else if (f.id.contains("COP-DEM_GLO")) {
                 val all_links = getDEMPathFromInspire(f.id)
                 all_links.toArray
-              } else if (f.id.startsWith("/eodata/Landsat-8/OLI_TIRS")) {
+              } else if (f.id.startsWith("/eodata/Landsat-8/OLI_TIRS") || f.id.startsWith("/eodata/Landsat-8-ESA/OLI_TIRS")) {
                 getLandsat8FilePaths(path = f.id).toArray
               } else if (f.id.startsWith("/eodata/Sentinel-1-RTC")) {
                 getSentinel1RTCFilePaths(path = f.id).toArray
