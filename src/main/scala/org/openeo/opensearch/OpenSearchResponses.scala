@@ -307,7 +307,7 @@ object OpenSearchResponses {
             bbox <- c.downField("bbox").as[Array[Double]]
             nominalDate <- c.downField("properties").downField("date").as[ZonedDateTime]
             links <- c.downField("properties").downField("links").as[Map[String, Array[Link]]]
-            resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.first.as[Double].toOption
+            resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.as[Double].toOption
             maybeCRS = c.downField("properties").downField("productInformation").downField("referenceSystemIdentifier").as[String].toOption
             tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
             properties <- c.downField("properties").as[GeneralProperties]
