@@ -70,7 +70,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
     val propagatableAttributeValues =
-      (attributeValues + ("accessedFrom" -> "MEP")) // get direct access links instead of download urls
+      (if (attributeValues.contains("accessedFrom")) attributeValues else attributeValues + ("accessedFrom" -> "MEP")) // get direct access links instead of download urls
         .filter {
           case ("tileId", value) => value.isInstanceOf[String] // filter by single tileId (server side)
           case (attribute, _) => !(Seq("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state")
