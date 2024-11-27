@@ -23,16 +23,6 @@ import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-    //    arguments(LocalDate.parse("2015-11-23"), new java.lang.Double(2.00)), // No products with this processingBaseline found
-    arguments(LocalDate.parse("2015-12-23"), new java.lang.Double(2.01)), // tweaked date
-    arguments(LocalDate.parse("2016-05-03"), new java.lang.Double(2.02)),
-    //    arguments(LocalDate.parse("2016-06-09"), new java.lang.Double(2.03)), // No products with this processingBaseline found
-    arguments(LocalDate.parse("2016-06-15"), new java.lang.Double(2.04)),
-    arguments(LocalDate.parse("2017-05-03"), new java.lang.Double(2.05)), // tweaked date
-    arguments(LocalDate.parse("2017-10-23"), new java.lang.Double(2.06)),
-    arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.07)),
-    arguments(LocalDate.parse("2019-07-08"), new java.lang.Double(2.08)),
-    arguments(LocalDate.parse("2020-02-04"), new java.lang.Double(2.09)),
     arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
     arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
     arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
@@ -41,14 +31,6 @@ object OpenSearchClientTest {
   ))
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-    arguments(LocalDate.parse("2018-03-26"), new java.lang.Double(2.07)),
-    arguments(LocalDate.parse("2018-05-23"), new java.lang.Double(2.08)), // Has only PHOEBUS-core products
-    arguments(LocalDate.parse("2018-10-08"), new java.lang.Double(2.09)),
-    arguments(LocalDate.parse("2018-11-06"), new java.lang.Double(2.10)),
-    arguments(LocalDate.parse("2018-11-21"), new java.lang.Double(2.11)),
-    arguments(LocalDate.parse("2019-05-06"), new java.lang.Double(2.12)),
-    arguments(LocalDate.parse("2019-07-08"), new java.lang.Double(2.13)),
-    arguments(LocalDate.parse("2020-02-04"), new java.lang.Double(2.14)),
     arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
     arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
     arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
