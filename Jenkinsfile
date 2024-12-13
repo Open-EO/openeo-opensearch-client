@@ -7,4 +7,6 @@ javaPipeline {
   maven_version = '3.6.3'
   create_git_tag_job = true
   wipeout_workspace = true
+  dev_repository = 'libs-snapshot-public'
+  prod_repository = 'libs-release-public'
 }
