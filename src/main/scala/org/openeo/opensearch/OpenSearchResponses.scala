@@ -26,6 +26,7 @@ import java.net.{SocketTimeoutException, URI}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
+import java.util.UUID
 import java.util.regex.Pattern
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -293,13 +294,13 @@ object OpenSearchResponses {
   }
 
   private def keepOneOrbitPerDay(features: Array[Feature]): Array[Feature] = {
-    val featuresPerDayMap = scala.collection.mutable.Map[LocalDate, ListBuffer[Feature]]()
+    val featuresPerDayMap = scala.collection.mutable.Map[(LocalDate, String), ListBuffer[Feature]]()
     features.foreach(f => {
-      val date = f.nominalDate.toLocalDate
-      if (featuresPerDayMap.contains(date)) {
-        featuresPerDayMap(date).append(f)
+      val tuple = (f.nominalDate.toLocalDate, f.tileID.getOrElse(UUID.randomUUID.toString))
+      if (featuresPerDayMap.contains(tuple)) {
+        featuresPerDayMap(tuple).append(f)
       } else {
-        featuresPerDayMap += (date -> ListBuffer(f))
+        featuresPerDayMap += (tuple -> ListBuffer(f))
       }
     })
 
