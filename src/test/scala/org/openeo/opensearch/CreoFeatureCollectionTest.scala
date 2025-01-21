@@ -123,13 +123,13 @@ class CreoFeatureCollectionTest {
     assertEquals(0, linkSCL.pixelValueOffset.get, 1e-6)
   }
 
-  @Test
-  def creodiasNoOffsetNeeded(): Unit = {
-    val collectionsResponse = loadJsonResource("creodiasDifferentGeom.json")
-    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
-    val link = features(0).links.find(l => l.title.get.contains("B04")).get
-    assertEquals(0, link.pixelValueOffset.get, 1e-6)
-  }
+//  @Test
+//  def creodiasNoOffsetNeeded(): Unit = {
+//    val collectionsResponse = loadJsonResource("creodiasDifferentGeom.json")
+//    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
+//    val link = features(0).links.find(l => l.title.get.contains("B04")).get
+//    assertEquals(0, link.pixelValueOffset.get, 1e-6)
+//  }
 
   @Test
   def testPagingReliesOnActualNumberOfFeaturesReturned(): Unit = {

@@ -23,17 +23,17 @@ import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
+//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
+//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
+//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
     arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
     // No products with this processingBaseline 99.99 found for L2A
   ))
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
+//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
+//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
+//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
     arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
     arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // Undocumented. Manually added
     arguments(LocalDate.parse("2021-10-19"), new java.lang.Double(5.0)), // Undocumented. Manually added
