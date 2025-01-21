@@ -34,7 +34,7 @@ object CreodiasClient{
 }
 
 class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto"),
-                     val allowParallelQuery: Boolean = false) extends OpenSearchClient {
+                     val allowParallelQuery: Boolean = false, val oneOrbitPerDay: Boolean = false) extends OpenSearchClient {
   import CreodiasClient._
 
   require(endpoint != null)
@@ -185,7 +185,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
     }
 
     val json = execute(getProducts)
-    CreoFeatureCollection.parse(json, dedup = true, tileIdPattern)
+    CreoFeatureCollection.parse(json, dedup = true, tileIdPattern, oneOrbitPerDay)
   }
 
   private def isPropagated(attribute: String): Boolean =
@@ -202,12 +202,16 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
 
 
   override final def equals(other: Any): Boolean = other match {
-    case that: CreodiasClient => this.endpoint == that.endpoint && this.allowParallelQuery == that.allowParallelQuery
+    case that: CreodiasClient => (
+      this.endpoint == that.endpoint
+        && this.allowParallelQuery == that.allowParallelQuery
+        && this.oneOrbitPerDay == that.oneOrbitPerDay
+      )
     case _ => false
   }
 
   override final def hashCode(): Int = {
-    val state = Seq(endpoint, allowParallelQuery)
+    val state = Seq(endpoint, allowParallelQuery, oneOrbitPerDay)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

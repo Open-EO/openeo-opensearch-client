@@ -25,7 +25,7 @@ import java.lang.System.getenv
 import java.net.{SocketTimeoutException, URI}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, LocalDate, ZonedDateTime}
 import java.util.regex.Pattern
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -144,6 +144,7 @@ object OpenSearchResponses {
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
+                     cloudCover: Double = 0,
                     ) {
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
@@ -290,6 +291,32 @@ object OpenSearchResponses {
     // Make sure the order is as it was before the dedup
     features.flatMap(f => if (featuresFiltered.contains(f)) List(f) else List())
   }
+
+  private def keepOneOrbitPerDay(features: Array[Feature]): Array[Feature] = {
+    val featuresPerDayMap = scala.collection.mutable.Map[LocalDate, ListBuffer[Feature]]()
+    features.foreach(f => {
+      val date = f.nominalDate.toLocalDate
+      if (featuresPerDayMap.contains(date)) {
+        featuresPerDayMap(date).append(f)
+      } else {
+        featuresPerDayMap += (date -> ListBuffer(f))
+      }
+    })
+
+    val featuresFiltered = featuresPerDayMap.flatMap({ case (_, features) =>
+      val selectedElement = features.minBy(_.cloudCover)
+      List(selectedElement)
+    }).toArray
+
+    if (logger.isDebugEnabled) {
+      val removed = features.length - featuresFiltered.length
+      if (removed > 0) {
+        logger.debug(s"Removed $removed feature(s) to keep only one orbit per day.")
+      }
+    }
+    featuresFiltered
+  }
+
 
   // TODO: itemsPerPage is confusing as it's the number of items/features in _this_ page; replace with something like
   //  hasMoreResults: Boolean instead?
@@ -785,7 +812,7 @@ object OpenSearchResponses {
       geometry
     }
 
-    def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None): FeatureCollection = {
+    def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None, oneOrbitPerDay: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -796,6 +823,7 @@ object OpenSearchResponses {
             resolution = c.downField("properties").downField("resolution").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
             deduplicationOrderValue = c.downField("properties").downField("published").as[String].toOption
+            cloudCover = c.downField("properties").downField("cloudCover").as[Double].toOption
           } yield {
             val theGeometry = tryToMakeGeometryValid(ensureValidGeometry(geometry).toString().parseGeoJson[Geometry], Some(id))
             val extent = theGeometry.extent
@@ -810,6 +838,7 @@ object OpenSearchResponses {
             Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry),
               generalProperties = properties,
               deduplicationOrderValue = deduplicationOrderValue,
+              cloudCover = cloudCover.getOrElse(0),
             )
           }
         }
@@ -823,7 +852,9 @@ object OpenSearchResponses {
             var featuresFiltered =
               if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
               else retainTileIdPattern(features, tileIdPattern)
-
+            if (dedup && oneOrbitPerDay) {
+              featuresFiltered = keepOneOrbitPerDay(featuresFiltered)
+            }
             val corruptTileProductIdentifiers =
               Seq("/eodata/Sentinel-2/MSI/L2A_N0500/2018/03/27/S2A_MSIL2A_20180327T114351_N0500_R123_T29UMV_20230828T122340.SAFE")
 

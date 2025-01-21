@@ -23,7 +23,7 @@ object OpenSearchClient {
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
   private val requestCounter = new AtomicLong
 
-  def apply(endpoint: URL, isUTM: Boolean = false, clientType: String = "", allowParallelQuery: Boolean = false): OpenSearchClient = {
+  def apply(endpoint: URL, isUTM: Boolean = false, clientType: String = "", allowParallelQuery: Boolean = false, oneOrbitPerDay: Boolean = false): OpenSearchClient = {
     if (clientType != "") {
       clientType.toLowerCase() match {
         case "stac" => new STACClient(endpoint, false)
@@ -36,7 +36,7 @@ object OpenSearchClient {
       // Guess Catalog Type using URL.
       endpoint.toString match {
         case s if s.contains("creo") => new CreodiasClient(endpoint)
-        case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => new CreodiasClient(endpoint, allowParallelQuery)
+        case s if s.contains("catalogue.dataspace.copernicus.eu/resto") => new CreodiasClient(endpoint, allowParallelQuery, oneOrbitPerDay)
         case s if s.contains("aws") => new STACClient(endpoint)
         case s if s.contains("c-scale") => new STACClient(endpoint, false)
         case _ => new OscarsClient(endpoint, isUTM)
