@@ -467,4 +467,21 @@ class OpenSearchClientTest {
     features.foreach(f => assertTrue(f.geometry.get.isValid))
     assertEquals(2, features.length)
   }
+
+  @Test
+  def northenLatitudes(): Unit = {
+    HttpCache.enabled = true
+    val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=15.530240809565335%2C77.69235406978089%2C18.26083943377296%2C78.28288625896272&page=1&maxRecords=1000&status=ONLINE&dataset=ESA-DATASET&productType=L2A&startDate=2023-04-19T00%3A00%3A00Z&completionDate=2023-04-21T00%3A00%3A00.000000001Z"
+    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+
+    println("oneOrbitPerDay = false:")
+    val featuresAll = CreoFeatureCollection.parse(collectionsResponse, dedup = true, oneOrbitPerDay = false).features
+    featuresAll.foreach(f => print("cloudCover: " + f.cloudCover + "\n"))
+
+    println("oneOrbitPerDay = true:")
+    val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true, oneOrbitPerDay = true).features
+    features.foreach(f => print("cloudCover: " + f.cloudCover + "\n"))
+
+    assertEquals(4, features.length)
+  }
 }
