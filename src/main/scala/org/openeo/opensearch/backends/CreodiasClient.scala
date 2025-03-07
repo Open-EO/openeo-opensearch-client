@@ -2,7 +2,7 @@ package org.openeo.opensearch.backends
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.{OpenSearchClient, safeReproject}
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import org.slf4j.LoggerFactory
 import scalaj.http.HttpOptions
@@ -118,7 +118,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
                                           attributeValues: Map[String, Any], correlationId: String,
                                           processingLevel: String, page: Int,
                                           sorted: Boolean): FeatureCollection = {
-    var bboxReprojected = bbox.reproject(LatLng)
+    var bboxReprojected = safeReproject(bbox, LatLng).extent
     if (attributeValues.get("resolution").contains(30) && attributeValues.get("productType").contains("DGE_30")) {
       // Otherwise catalogue.dataspace.copernicus.eu might return a 504 error
       bboxReprojected = extentLatLngExtentToAtLeast1x1(bboxReprojected)

@@ -1,9 +1,11 @@
 package org.openeo.opensearch.backends
 
-import geotrellis.proj4.LatLng
+import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
 import nl.jqno.equalsverifier.EqualsVerifier
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.openeo.opensearch.to_0_360_range
 
 import java.time.LocalDate
 
@@ -27,5 +29,23 @@ class CreodiasClientTest {
       correlationId = "",
       processingLevel = ""
     )
+  }
+
+  @Test
+  def testGetProductsAntimeridian(): Unit = {
+    val client = CreodiasClient()
+
+    val features = client.getProducts(
+      "GLOBAL-MOSAICS",
+      dateRange = (LocalDate.of(2020, 1, 1), LocalDate.of(2020, 3, 2)),
+      bbox = ProjectedExtent(Extent(300000, 7703320, 409800, 7800000), CRS.fromEpsgCode(32601)),
+      attributeValues = Map[String, Any](),
+      correlationId = "",
+      processingLevel = ""
+    )
+    for (feature <- features) {
+      // Check if the returned products are close to the anitmeridian
+      assertTrue(Math.abs(to_0_360_range(feature.bbox.xmin) - 180) < 10)
+    }
   }
 }
