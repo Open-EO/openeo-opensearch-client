@@ -44,7 +44,7 @@ class CreodiasClientTest {
       processingLevel = ""
     )
     for (feature <- features) {
-      // Check if the returnd products are close to the anitmeridian
+      // Check if the returned products are close to the anitmeridian
       assertTrue(Math.abs(to_0_360_range(feature.bbox.xmin) - 180) < 10)
     }
   }
