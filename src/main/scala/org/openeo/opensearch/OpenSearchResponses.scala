@@ -473,12 +473,18 @@ object OpenSearchResponses {
 
     private val logger = LoggerFactory.getLogger(CreoFeatureCollection.getClass)
     private val TILE_PATTERN = Pattern.compile("_T([0-9]{2}[A-Z]{3})_")
-    private val s3Endpoint = System.getenv().getOrDefault("AWS_S3_ENDPOINT","")//https://s3.cloudferro.com
-    private val useHTTPS = System.getenv().getOrDefault("AWS_HTTPS","YES")//https://s3.cloudferro.com
+    // https://s3.cloudferro.com or https://eodata.cloudferro.com (https://data.cloudferro.com is not accessible)
+    private val s3Endpoint = System.getenv().getOrDefault("AWS_S3_ENDPOINT", "")
+    private val useHTTPS = System.getenv().getOrDefault("AWS_HTTPS", "YES")
 
 
     private val creoClient = {
       if(s3Endpoint!="") {
+        if (!System.getenv().containsKey("AWS_ACCESS_KEY_ID")
+          || !System.getenv().containsKey("SWIFT_SECRET_ACCESS_KEY")) {
+          // TODO: Throw error or use AwsBasicCredentials to make it more explicit
+          logger.warn("Environment variables should contain AWS_ACCESS_KEY_ID and SWIFT_SECRET_ACCESS_KEY.")
+        }
         val uri =
         if(s3Endpoint.startsWith("http")) {
           new URI( s3Endpoint )
