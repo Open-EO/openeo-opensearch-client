@@ -480,11 +480,6 @@ object OpenSearchResponses {
 
     private val creoClient = {
       if(s3Endpoint!="") {
-        if (!System.getenv().containsKey("AWS_ACCESS_KEY_ID")
-          || !System.getenv().containsKey("SWIFT_SECRET_ACCESS_KEY")) {
-          // TODO: Throw error or use AwsBasicCredentials to make it more explicit
-          logger.warn("Environment variables should contain AWS_ACCESS_KEY_ID and SWIFT_SECRET_ACCESS_KEY.")
-        }
         val uri =
         if(s3Endpoint.startsWith("http")) {
           new URI( s3Endpoint )
@@ -519,6 +514,7 @@ object OpenSearchResponses {
             .retryPolicy(retryPolicy)
             .build()
 
+        // Access key must be specified either via environment variable (AWS_ACCESS_KEY_ID) or system property (aws.accessKeyId)
         Some(S3Client.builder.httpClientBuilder(UrlConnectionHttpClient.builder()
           .socketTimeout(Duration.ofMinutes(1))
           .connectionTimeout(Duration.ofMinutes(1)))
