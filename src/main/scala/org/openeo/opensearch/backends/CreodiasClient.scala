@@ -2,7 +2,7 @@ package org.openeo.opensearch.backends
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.{OpenSearchClient, safeReproject}
+import org.openeo.opensearch.{OpenSearchClient, safeReproject, to_0_360_range}
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import org.slf4j.LoggerFactory
 import scalaj.http.HttpOptions
@@ -65,15 +65,35 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       }
 
       from(dateRange.get._1).par.flatMap(range => {
-        getProductsOriginal(collectionId,
+        getProductsSplitAntimeridian(collectionId,
           Some(range), bbox,
           attributeValues, correlationId,
           processingLevel
         )
       }).seq
     } else {
-      getProductsOriginal(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
+      getProductsSplitAntimeridian(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
     }
+  }
+
+  def getProductsSplitAntimeridian(collectionId: String,
+                                   dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                   bbox: ProjectedExtent,
+                                   attributeValues: Map[String, Any], correlationId: String,
+                                   processingLevel: String
+                                  ): Seq[Feature] = {
+    val bboxProjected = safeReproject(bbox, LatLng)
+    var products = getProductsOriginal(collectionId, dateRange, bboxProjected, attributeValues, correlationId, processingLevel)
+
+    if (bboxProjected.extent.xmax >= 180) {
+      // Products in catalog range seems to span -182 to +182
+      val e = bboxProjected.extent
+      val swapped = Extent(to_0_360_range(e.xmin) - 360, e.ymin, to_0_360_range(e.xmax) - 360, e.ymax)
+      val bboxProjectedNegative = ProjectedExtent(swapped, bboxProjected.crs)
+      products ++= getProductsOriginal(collectionId, dateRange, bboxProjectedNegative, attributeValues, correlationId, processingLevel)
+    }
+
+    products
   }
 
   def getProductsOriginal(collectionId: String,

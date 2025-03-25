@@ -3,8 +3,9 @@ package org.openeo.opensearch.backends
 import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
 import nl.jqno.equalsverifier.EqualsVerifier
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
+import org.openeo.HttpCache
 import org.openeo.opensearch.to_0_360_range
 
 import java.time.LocalDate
@@ -33,6 +34,7 @@ class CreodiasClientTest {
 
   @Test
   def testGetProductsAntimeridian(): Unit = {
+    HttpCache.enabled = true
     val client = CreodiasClient()
 
     val features = client.getProducts(
@@ -43,6 +45,7 @@ class CreodiasClientTest {
       correlationId = "",
       processingLevel = ""
     )
+    assertEquals(features.length, 12)
     for (feature <- features) {
       // Check if the returned products are close to the anitmeridian
       assertTrue(Math.abs(to_0_360_range(feature.bbox.xmin) - 180) < 10)
