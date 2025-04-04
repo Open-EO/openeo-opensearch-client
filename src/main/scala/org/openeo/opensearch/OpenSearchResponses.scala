@@ -878,7 +878,8 @@ object OpenSearchResponses {
                 getLandsat8FilePaths(path = f.id).toArray
               } else if (f.id.startsWith("/eodata/Sentinel-1-RTC")) {
                 getSentinel1RTCFilePaths(path = f.id).toArray
-              } else if (f.id.startsWith("/eodata/Global-Mosaics/Sentinel-1")) {
+              } else if (f.id.contains("/eodata/Global-Mosaics/Sentinel-1")) {
+                // 'contains' instead of 'startsWith' to make mocking easier.
                 getGlobalMosaicsSentinel1FilePaths(path = f.id).toArray
               } else {
                 f.links
