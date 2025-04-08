@@ -181,10 +181,10 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         .param("completionDate", dateRange.get._2 format ISO_INSTANT)
     }
 
-    val tileIdPattern = attributeValues.get("tileId").map(_.toString)
+    val tileIdValue = attributeValues.get("tileId")
 
-    tileIdPattern match {
-      case Some(pattern) if !pattern.contains("*") =>
+    tileIdValue match {
+      case Some(pattern: String) if !pattern.contains("*") =>
         getProducts = getProducts.param("tileId", pattern)
         logger.debug(s"included non-wildcard tileId $pattern param")
       case _ =>
@@ -205,7 +205,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
     }
 
     val json = execute(getProducts)
-    CreoFeatureCollection.parse(json, dedup = true, tileIdPattern, oneOrbitPerDay)
+    CreoFeatureCollection.parse(json, dedup = true, tileIdValue, oneOrbitPerDay)
   }
 
   private def isPropagated(attribute: String): Boolean =
