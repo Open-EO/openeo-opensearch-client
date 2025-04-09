@@ -28,6 +28,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
 import java.util.UUID
 import java.util.regex.Pattern
+import java.util.Collections
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Using
@@ -815,7 +816,7 @@ object OpenSearchResponses {
       geometry
     }
 
-    def parse(json: String, dedup: Boolean = false, tileIdPattern: Option[String] = None, oneOrbitPerDay: Boolean = false): FeatureCollection = {
+    def parse(json: String, dedup: Boolean = false, tileIdValue: Option[Any] = None, oneOrbitPerDay: Boolean = false): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -853,8 +854,8 @@ object OpenSearchResponses {
             features <- c.downField("features").as[Array[Feature]]
           } yield {
             var featuresFiltered =
-              if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIdPattern(features, tileIdPattern)))
-              else retainTileIdPattern(features, tileIdPattern)
+              if (dedup) dedupFeatures(removePhoebusFeatures(retainTileIds(features, tileIdValue)))
+              else retainTileIds(features, tileIdValue)
             if (dedup && oneOrbitPerDay) {
               featuresFiltered = keepOneOrbitPerDay(featuresFiltered)
             }
@@ -895,13 +896,14 @@ object OpenSearchResponses {
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
     }
 
-    private def retainTileIdPattern(features: Array[Feature], tileIdPattern: Option[String]): Array[Feature] =
-      tileIdPattern match {
-        case Some(pattern) => features.filter(feature => feature.tileID match {
+    private def retainTileIds(features: Array[Feature], tileIdValue: Option[Any]): Array[Feature] =
+      tileIdValue match {
+        case Some(pattern: String) => retainTileIds(features, tileIdValue = Some(Collections.singletonList(pattern)))
+        case Some(patterns: java.util.List[String]) => features.filter(feature => feature.tileID match {
           case Some(tileId) =>
-            val matchesPattern = tileId matches pattern.replace("*", ".*")
-            logger.debug(s"${if (matchesPattern) "retaining" else "omitting"} feature ${feature.id} with tileId $tileId")
-            matchesPattern
+            val matchesPatterns = patterns.stream().anyMatch(pattern => tileId matches pattern.replace("*", ".*"))
+            logger.debug(s"${if (matchesPatterns) "retaining" else "omitting"} feature ${feature.id} with tileId $tileId")
+            matchesPatterns
           case _ =>
             logger.warn(s"omitting feature ${feature.id} with unknown tileId")
             false

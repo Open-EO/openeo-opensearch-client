@@ -8,10 +8,11 @@ import org.openeo.TestHelpers.loadJsonResource
 import org.openeo.opensearch.OpenSearchResponses.{CreoFeatureCollection, FeatureCollection}
 
 import java.time.ZonedDateTime
+import java.util.Arrays
 import java.util.stream.{Stream => JStream}
 
 object CreoFeatureCollectionTest {
-  def tileIdPatterns: JStream[Arguments] = JStream.of(
+  def tileIdValues: JStream[Arguments] = JStream.of(
     Arguments.of(None, Boolean.box(true)),
     Arguments.of(Some("31UFS"), Boolean.box(true)),
     Arguments.of(Some("30UFS"), Boolean.box(false)),
@@ -21,16 +22,20 @@ object CreoFeatureCollectionTest {
     Arguments.of(Some("30*F*"), Boolean.box(false)),
     Arguments.of(Some("3*U**"), Boolean.box(true)),
     Arguments.of(Some("3*T**"), Boolean.box(false)),
+    Arguments.of(Some(Arrays.asList("31UFS")), Boolean.box(true)),
+    Arguments.of(Some(Arrays.asList("30UFS")), Boolean.box(false)),
+    Arguments.of(Some(Arrays.asList("30UFS", "31UFS")), Boolean.box(true)),
+    Arguments.of(Some(Arrays.asList("29UFS", "30UFS")), Boolean.box(false)),
   )
 }
 
 class CreoFeatureCollectionTest {
 
   @ParameterizedTest
-  @MethodSource(Array("tileIdPatterns"))
-  def testTileIdPattern(tileIdPattern: Option[String], featureIncluded: Boolean): Unit = {
+  @MethodSource(Array("tileIdValues"))
+  def testTileIdPattern(tileIdValue: Option[String], featureIncluded: Boolean): Unit = {
     val productsResponse = loadJsonResource("creoDiasTileIdPattern.json")
-    val features = CreoFeatureCollection.parse(productsResponse, dedup = true, tileIdPattern = tileIdPattern).features
+    val features = CreoFeatureCollection.parse(productsResponse, dedup = true, tileIdValue = tileIdValue).features
 
     assertEquals(featureIncluded, features.nonEmpty)
   }
