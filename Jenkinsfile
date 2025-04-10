@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-@Library('lib@openeo_opensearch_client')_
+@Library('lib@openeo_opensearch_client_fix_ssl')_
 
 javaPipeline {
   package_name  = 'openeo-opensearch-client'
