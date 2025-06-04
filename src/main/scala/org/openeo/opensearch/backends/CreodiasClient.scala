@@ -175,6 +175,11 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       getProducts = getProducts.param("orbitDirection",orbitdirection.get.toString.toLowerCase)
     }
 
+    val relativeOrbit = attributeValues.get("sat:relative_orbit")
+    if(relativeOrbit.isDefined) {
+      getProducts = getProducts.param("relativeOrbitNumber",s"${relativeOrbit.get.toString}")
+    }
+
     if (dateRange.isDefined) {
       getProducts = getProducts
         .param("startDate", dateRange.get._1 format ISO_INSTANT)
@@ -209,7 +214,7 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
   }
 
   private def isPropagated(attribute: String): Boolean =
-    !Set("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline", "tileId")
+    !Set("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "processingBaseline", "tileId", "sat:relative_orbit")
       .contains(attribute)
 
   override def getCollections(correlationId: String): Seq[Feature] = {

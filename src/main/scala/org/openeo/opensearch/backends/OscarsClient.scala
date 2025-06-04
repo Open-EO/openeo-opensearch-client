@@ -73,7 +73,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
       (if (attributeValues.contains("accessedFrom")) attributeValues else attributeValues + ("accessedFrom" -> "MEP")) // get direct access links instead of download urls
         .filter {
           case ("tileId", value) => value.isInstanceOf[String] // filter by single tileId (server side)
-          case (attribute, _) => !(Seq("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state")
+          case (attribute, _) => !(Seq("eo:cloud_cover", "provider:backend", "orbitDirection", "sat:orbit_state", "sat:relative_orbit")
             contains attribute)
         }
 
@@ -90,6 +90,11 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
     val cloudCover = attributeValues.get("eo:cloud_cover")
     if(cloudCover.isDefined) {
       getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
+    }
+
+    val relativeOrbit = attributeValues.get("sat:relative_orbit")
+    if(relativeOrbit.isDefined) {
+      getProducts = getProducts.param("relativeOrbitNumber",s"${relativeOrbit.get.toString}")
     }
 
     val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
