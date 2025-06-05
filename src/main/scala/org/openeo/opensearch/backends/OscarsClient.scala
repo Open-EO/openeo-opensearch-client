@@ -3,7 +3,7 @@ package org.openeo.opensearch.backends
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchClient
-import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
+import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, dedupFeatures}
 import scalaj.http.{HttpOptions, HttpStatusException}
 
 import java.net.URL
@@ -59,7 +59,11 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
       if (itemsPerPage <= 0) Seq() else features ++ from(page + itemsPerPage)
     }
 
-    from(page = 1)
+    val features = from(page = 1)
+    // In case features on different pages would match.
+    // This was not an issue, but better safe than sorry.
+    // The pages get also dedupped individually, so this is just a final cleanup.
+    dedupFeatures(features.toArray)
   }
 
   override protected def getProductsFromPage(collectionId: String,
