@@ -254,6 +254,23 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
+  @Test
+  def testMultipageDedup(): Unit = {
+    HttpCache.enabled = true
+    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val features = openSearch.getProducts(
+      collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
+      dateRange = Some((LocalDate.of(2020, 3, 1).atStartOfDay(UTC), LocalDate.of(2020, 4, 2).atStartOfDay(UTC))),
+      ProjectedExtent(Extent(2.6638244, 50.7186868, 5.1456951, 51.4703025), LatLng),
+      Map[String, Any]("count" -> "6"), // small enough pages that would trigger the error
+      "hello", ""
+    )
+
+    println(s"got ${features.size} features")
+    assertEquals(features.length, 168)
+    features.foreach(f => println(s"${f.id} - ${f.nominalDate} - ${f.tileID}"))
+    assertTrue(features.nonEmpty)
+  }
 
   @Test
   def testCreoSentinel1(): Unit = {
