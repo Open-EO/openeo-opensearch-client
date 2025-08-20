@@ -27,7 +27,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           val idx = fullUrl.indexOf("//")
           val filePathOriginal = fullUrl.substring(idx + 2)
           var filePath = filePathOriginal
-          val invalidChars = """[\\":*?&\"<>|]""".r
+          val invalidChars = """[\\":*?&<>|]""".r
           filePath = invalidChars.replaceAllIn(filePath, "_") // slugify to make valid windows path
           filePath = """__+""".r.replaceAllIn(filePath, "_")
 
