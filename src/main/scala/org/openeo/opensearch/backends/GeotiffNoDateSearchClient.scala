@@ -16,7 +16,7 @@ import java.util
 import java.util.concurrent.TimeUnit.HOURS
 import scala.jdk.CollectionConverters._
 
-class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String],  val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {
+class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String], val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {
   require(dataGlob != null)
   require(bands != null)
   require(defaultDate != null)
@@ -27,9 +27,9 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
     .expireAfterWrite(1, HOURS)
     .build(new CacheLoader[String, List[Path]] {
       override def load(dataGlob: String): List[Path] = {
-        if(dataGlob.startsWith("http")) {
+        if (dataGlob.startsWith("http")) {
           List(new Path(URI.create(dataGlob)))
-        }else{
+        } else {
           HdfsUtils.listFiles(new Path(s"file:$dataGlob"), new Configuration)
         }
 
@@ -43,17 +43,17 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
 
 
     val datedRasterSources = paths
-      .map { case (path) =>
+      .map { path =>
         val bandRasterSource = GeoTiffRasterSource(GeoTiffPath(path.toString))
-        ( path.toString, bandRasterSource)
+        (path.toString, bandRasterSource)
       }
 
-    val features = datedRasterSources.map{ case (path: String, source: GeoTiffRasterSource) =>
+    val features = datedRasterSources.map { case (path: String, source: GeoTiffRasterSource) =>
 
-      OpenSearchResponses.Feature(s"${path}", source.extent.reproject(source.crs,LatLng), ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.asScala.headOption)), Some(source.gridExtent.cellSize.width), None,None, crs = Some(source.crs),rasterExtent = Some(source.extent))
+      OpenSearchResponses.Feature(s"$path", source.extent.reproject(source.crs, LatLng), ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.asScala.headOption)), Some(source.gridExtent.cellSize.width), None, None, crs = Some(source.crs), rasterExtent = Some(source.extent))
     }
 
-    features.toSeq
+    features
   }
 
   override def getCollections(correlationId: String): Seq[OpenSearchResponses.Feature] = {
@@ -65,8 +65,8 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
       Array(),
       Option.empty,
       None,
-      geometry=Some(worldExtent.toPolygon()),
-      crs=Option.empty,
+      geometry = Some(worldExtent.toPolygon()),
+      crs = Option.empty,
       rasterExtent = Option.empty
     ))
   }

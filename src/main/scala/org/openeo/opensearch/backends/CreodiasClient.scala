@@ -7,7 +7,7 @@ import org.openeo.opensearch.{OpenSearchClient, safeReproject, to_0_360_range}
 import org.slf4j.LoggerFactory
 import scalaj.http.HttpOptions
 
-import java.net.URL
+import java.net.{URI, URL}
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import scala.collection.Map
@@ -33,7 +33,7 @@ object CreodiasClient{
   }
 }
 
-class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.copernicus.eu/resto"),
+class CreodiasClient(val endpoint: URL = new URI("https://catalogue.dataspace.copernicus.eu/resto").toURL,
                      val allowParallelQuery: Boolean = false, val oneOrbitPerDay: Boolean = false) extends OpenSearchClient {
   import CreodiasClient._
 
@@ -151,7 +151,9 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
       .param("maxRecords", pageSize.toString) // A larger page size does not slow down the requests.
       .param("status", "ONLINE")
       .param("dataset", "ESA-DATASET")
-      .params(attributeValues.mapValues(_.toString).filterKeys(isPropagated).toSeq)
+      .params(attributeValues.map {
+        case (key,value) => (key,value.toString)
+      }.view.filterKeys(isPropagated).toSeq)
 
     if (sorted) {
       getProducts = getProducts

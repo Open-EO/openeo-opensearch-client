@@ -15,13 +15,13 @@ class CGLSOscarsClient(override val endpoint: URL, val bands: util.List[String])
   override def getProducts(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String): Seq[OpenSearchResponses.Feature] = {
 
     val features = super.getProducts(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
-    features.map(f=>{
-      val newLinks = f.links.flatMap(l=>{
+    features.map(f => {
+      val newLinks = f.links.flatMap(l => {
 
-        if(l.href.toString.endsWith(".nc")) {
+        if (l.href.toString.endsWith(".nc")) {
           val path = l.href.getPath
-          bands.asScala.map(b=>new Link(URI.create(s"""NETCDF:${path}:$b"""),Some(b)))
-        }else{
+          bands.asScala.map(b => Link(URI.create(s"""NETCDF:$path:$b"""), Some(b)))
+        } else {
           Some(l)
         }
 

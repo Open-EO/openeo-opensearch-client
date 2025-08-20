@@ -19,15 +19,15 @@ import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 
-object Agera5SearchClient{
+object Agera5SearchClient {
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
 
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String]): OpenSearchClient = {
     new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
-
   }
+
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], bandMarker: String): OpenSearchClient = {
-      new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored, bandMarker)
+    new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored, bandMarker)
   }
 
   def create(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String], bandMarker: String): OpenSearchClient = {
@@ -35,7 +35,8 @@ object Agera5SearchClient{
   }
 }
 
-class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker:String = "dewpoint-temperature" ) extends OpenSearchClient {
+class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val bandMarker: String = "dewpoint-temperature") extends OpenSearchClient {
+
   import Agera5SearchClient._
 
   require(dataGlob != null)
@@ -45,7 +46,10 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
 
   protected def deriveDate(filename: String, date: Regex): ZonedDateTime = filename match {
     case date(year, month, day) => LocalDate.of(year.toInt, month.toInt, day.toInt).atStartOfDay(ZoneId.of("UTC"))
-    case _ => {logger.warn(s"Agera5 products $filename failed to match regex: ${date.toString()}"); null}
+    case _ => {
+      logger.warn(s"Agera5 products $filename failed to match regex: ${date.toString()}")
+      null
+    }
   }
 
   private def getBandFiles(dewPointTemperatureFile: String): Seq[(String, String)] = {
@@ -72,7 +76,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
   // Note: All parameters except for dateRange are unused.
   override def getProducts(collectionId: String, dateRange: Option[(ZonedDateTime, ZonedDateTime)], bbox: ProjectedExtent, attributeValues: collection.Map[String, Any], correlationId: String, processingLevel: String): Seq[OpenSearchResponses.Feature] = {
     val datedPaths: List[(ZonedDateTime, String)] = paths
-      .map(path => deriveDate(path.toUri.getPath, dateRegex) -> path.toUri.getPath).filter(_._1!=null)
+      .map(path => deriveDate(path.toUri.getPath, dateRegex) -> path.toUri.getPath).filter(_._1 != null)
 
     var sortedDates = datedPaths
       .toArray
@@ -93,7 +97,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
         (date, path, bandRasterSource)
       }
 
-    val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map{ case (date: ZonedDateTime, path: String, source: GeoTiffRasterSource) =>
+    val features: Array[OpenSearchResponses.Feature] = datedRasterSources.map { case (date: ZonedDateTime, path: String, source: GeoTiffRasterSource) =>
       val links = getBandFiles(path).map { case (file, band) => Link(URI.create(s"""$file"""), Some(band)) }
       OpenSearchResponses.Feature(path, source.extent, date, links.toArray, Some(source.gridExtent.cellSize.width),
         tileID = None, geometry = None, crs = Some(LatLng))
@@ -111,8 +115,8 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
       Array(),
       Option.empty,
       None,
-      geometry=Some(worldExtent.toPolygon()),
-      crs=Option.empty,
+      geometry = Some(worldExtent.toPolygon()),
+      crs = Option.empty,
       rasterExtent = Option.empty
     ))
 
@@ -126,7 +130,7 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
 
   override final def equals(other: Any): Boolean = other match {
     case that: Agera5SearchClient =>
-        this.dataGlob == that.dataGlob &&
+      this.dataGlob == that.dataGlob &&
         this.bands == that.bands &&
         // Scala Regex and underlying Java Pattern do not implement equals() and hashCode()
         this.dateRegex.pattern.pattern() == that.dateRegex.pattern.pattern() &&
