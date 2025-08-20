@@ -62,7 +62,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
                 println("Server returned 404 or 410: " + url)
                 throw e
               case e: Throwable =>
-                println("Caching error. Will retry without caching. " + e + "  " + e.getStackTraceString)
+                println("Caching error. Will retry without caching. " + e + "  " + e.getStackTrace.mkString("/n"))
                 // Test this by running: chmod a=rX src/test/resources/org/openeo/httpsCache
                 openConnectionSuper(url).getInputStream
             }
@@ -82,7 +82,7 @@ class HttpCache extends sun.net.www.protocol.https.Handler {
           if (inputStream.isEmpty) {
             if (HttpCache.randomErrorEnabled && HttpCache.random.nextDouble() < 0.3
               && url.toString.contains("catalogue.dataspace.copernicus.eu")) {
-              println("Intentional random error for: " + url)
+              println("Intentional random error for: " + this.url)
               // Just like in sun/net/www/protocol/http/HttpURLConnection.java:1900
               val respCode = 500
               throw new java.io.IOException("Server returned HTTP" +

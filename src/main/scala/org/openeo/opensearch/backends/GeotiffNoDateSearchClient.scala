@@ -9,14 +9,12 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.openeo.opensearch.OpenSearchResponses.Link
 import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
-import org.slf4j.LoggerFactory
 
 import java.net.URI
 import java.time.ZonedDateTime
 import java.util
 import java.util.concurrent.TimeUnit.HOURS
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-
+import scala.jdk.CollectionConverters._
 
 class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String],  val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {
   require(dataGlob != null)
@@ -52,7 +50,7 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
 
     val features = datedRasterSources.map{ case (path: String, source: GeoTiffRasterSource) =>
 
-      OpenSearchResponses.Feature(s"${path}", source.extent.reproject(source.crs,LatLng), ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.toSeq.headOption)), Some(source.gridExtent.cellSize.width), None,None, crs = Some(source.crs),rasterExtent = Some(source.extent))
+      OpenSearchResponses.Feature(s"${path}", source.extent.reproject(source.crs,LatLng), ZonedDateTime.parse(defaultDate), Array(Link(URI.create(s"""$path"""), bands.asScala.headOption)), Some(source.gridExtent.cellSize.width), None,None, crs = Some(source.crs),rasterExtent = Some(source.extent))
     }
 
     features.toSeq

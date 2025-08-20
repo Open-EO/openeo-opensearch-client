@@ -15,7 +15,7 @@ import java.net.URI
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util
 import java.util.concurrent.TimeUnit.HOURS
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 

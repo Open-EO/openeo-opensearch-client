@@ -2,8 +2,8 @@ package org.openeo.opensearch.backends
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.{OpenSearchClient, safeReproject, to_0_360_range}
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
+import org.openeo.opensearch.{OpenSearchClient, safeReproject, to_0_360_range}
 import org.slf4j.LoggerFactory
 import scalaj.http.HttpOptions
 
@@ -64,13 +64,13 @@ class CreodiasClient(val endpoint: URL = new URL("https://catalogue.dataspace.co
         }
       }
 
-      from(dateRange.get._1).par.flatMap(range => {
+      from(dateRange.get._1).flatMap(range => {
         getProductsSplitAntimeridian(collectionId,
           Some(range), bbox,
           attributeValues, correlationId,
           processingLevel
         )
-      }).seq
+      })
     } else {
       getProductsSplitAntimeridian(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
     }

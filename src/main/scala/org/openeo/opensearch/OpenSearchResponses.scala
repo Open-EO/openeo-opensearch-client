@@ -5,8 +5,8 @@ import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.util.UTM
 import geotrellis.proj4.{CRS, LatLng}
+import io.circe._
 import io.circe.generic.auto._
-import io.circe.{ACursor, Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
@@ -26,11 +26,11 @@ import java.net.{SocketTimeoutException, URI}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
-import java.util.UUID
 import java.util.regex.Pattern
-import java.util.Collections
-import scala.collection.JavaConverters._
+import java.util.{Collections, UUID}
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.matching.Regex
@@ -80,7 +80,7 @@ object OpenSearchResponses {
 
 
   case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[Seq[String]] = None)
+                  bandNames: Option[mutable.Buffer[String]] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -571,7 +571,7 @@ object OpenSearchResponses {
                   s"bucket: EODATA, " +
                   s"key: ${key}"
                 )
-                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTraceString
+                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTrace.mkString("\n")
                 var cause = e.getCause
                 if(cause!=null) {
                   msgStr += "\n Cause: " + cause + "   " + cause.getMessage

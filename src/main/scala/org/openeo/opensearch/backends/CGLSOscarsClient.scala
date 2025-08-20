@@ -7,7 +7,7 @@ import org.openeo.opensearch.OpenSearchResponses.Link
 import java.net.{URI, URL}
 import java.time.ZonedDateTime
 import java.util
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 
 class CGLSOscarsClient(override val endpoint: URL, val bands: util.List[String]) extends OscarsClient(
   endpoint, false, deduplicationPropertyJsonPath = "properties.productInformation.productGroupId") {
