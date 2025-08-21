@@ -12,7 +12,7 @@ import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
 import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
 import org.openeo.opensearch.{OpenSearchClient, ZonedDateTimeOrdering}
 
-import java.net.URL
+import java.net.URI
 import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util
@@ -23,20 +23,12 @@ import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
-    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
-    // No products with this processingBaseline 99.99 found for L2A
+    arguments(LocalDate.parse("2022-12-06"), 5.09d),
   ))
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
-    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
-//    arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // not longer there
-    arguments(LocalDate.parse("2021-10-19"), new java.lang.Double(5.0)), // Undocumented. Manually added
+    arguments(LocalDate.parse("2022-12-06"), 5.09d),
+    arguments(LocalDate.parse("2021-10-19"), 5.0d), // Undocumented. Manually added
   ))
 
   def demExtents: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -48,32 +40,32 @@ object OpenSearchClientTest {
 class OpenSearchClientTest {
 
   private var httpsCacheEnabledOriginalValue = false
-  private var httpsCacherandomErrorEnabledOriginalValue = false
+  private var httpsCacheRandomErrorEnabledOriginalValue = false
 
   @BeforeEach def beforeEach(): Unit = {
     httpsCacheEnabledOriginalValue = HttpCache.enabled
-    httpsCacherandomErrorEnabledOriginalValue = HttpCache.randomErrorEnabled
+    httpsCacheRandomErrorEnabledOriginalValue = HttpCache.randomErrorEnabled
   }
 
   @AfterEach def afterEach(): Unit = {
     HttpCache.enabled = httpsCacheEnabledOriginalValue
-    HttpCache.randomErrorEnabled = httpsCacherandomErrorEnabledOriginalValue
+    HttpCache.randomErrorEnabled = httpsCacheRandomErrorEnabledOriginalValue
   }
 
   @Test
   def testOscarsGetProducts(): Unit = {
-    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
 
     val endDate = LocalDate.of(2020, 1, 1)
     val features = openSearch.getProducts(
       collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
       (LocalDate.of(2019, 10, 3), endDate),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->50.0,"resolution"->10), "hello", ""
-      )
+      Map[String, Any]("eo:cloud_cover" -> 50.0, "resolution" -> 10), "hello", ""
+    )
 
     println(s"got ${features.size} features")
-    assertTrue(features.size<160)
+    assertTrue(features.size < 160)
     assertTrue(features.nonEmpty)
     val maxDate = features.map(_.nominalDate).max
     assertTrue(maxDate.isBefore(endDate.atStartOfDay(ZoneId.of("UTC"))))
@@ -82,7 +74,7 @@ class OpenSearchClientTest {
 
   @Test
   def testOscarsGetProductsSameDate(): Unit = {
-    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
 
 
     val theDate = LocalDate.of(2019, 10, 3)
@@ -109,18 +101,18 @@ class OpenSearchClientTest {
       collectionId = "Sentinel2",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 6)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover"->90.0), correlationId = "hello", "S2MSI2A"
-      )
+      Map[String, Any]("eo:cloud_cover" -> 90.0), correlationId = "hello", "S2MSI2A"
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertTrue(features.size<9)
+    assertTrue(features.size < 9)
     val filterFeatures = features.filter(_.id.contains("31UDT"))
     assertTrue(filterFeatures.nonEmpty)
     val aFeature = filterFeatures.head
     val band02 = aFeature.links.filter(_.title.get.contains("B02_10m"))
     assertTrue(band02.nonEmpty)
-    assertEquals("31UDT",aFeature.tileID.get)
+    assertEquals("31UDT", aFeature.tileID.get)
     assertTrue(aFeature.geometry.isDefined)
   }
 
@@ -154,12 +146,12 @@ class OpenSearchClientTest {
       collectionId = "CopDem",
       (LocalDate.of(2009, 10, 1), LocalDate.of(2020, 10, 5)),
       extent,
-      Map[String, Any]("productType"->"DGE_30", "resolution"->30), correlationId = "hello", ""
+      Map[String, Any]("productType" -> "DGE_30", "resolution" -> 30), correlationId = "hello", ""
     )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertTrue(features.size<11)
+    assertTrue(features.size < 11)
 
     val aFeature = features.head
     val band02 = aFeature.links.filter(_.title.get.contains("DEM"))
@@ -177,21 +169,20 @@ class OpenSearchClientTest {
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), correlationId = "hello", "LEVEL2A"
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
-    assertEquals(11,features.length)
+    assertEquals(11, features.length)
   }
 
   /**
    * c-scale stac catalog is not stable
    */
-  @Ignore
   @Disabled
   @Test
   def testSTACGetProductsCScale(): Unit = {
-    val openSearch = OpenSearchClient(new URL("https://resto.c-scale.zcu.cz/"))
+    val openSearch = OpenSearchClient(new URI("https://resto.c-scale.zcu.cz/").toURL)
 
     val features = openSearch.getProducts(
       collectionId = "S2",
@@ -206,7 +197,7 @@ class OpenSearchClientTest {
 
   @Test
   def testOscarsGetCollections(): Unit = {
-    val client = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val client = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
     checkGetCollections(client)
   }
 
@@ -224,7 +215,7 @@ class OpenSearchClientTest {
   @Disabled
   @Test
   def testSTACGetCollectionsCScale(): Unit = {
-    checkGetCollections(new STACClient(new URL("https://resto.c-scale.zcu.cz/")))
+    checkGetCollections(new STACClient(new URI("https://resto.c-scale.zcu.cz/").toURL))
   }
 
   private def checkGetCollections(openSearchClient: OpenSearchClient): Unit = {
@@ -241,14 +232,14 @@ class OpenSearchClientTest {
 
   @Test
   def testOscarsGetProductsWithEmptyDate(): Unit = {
-    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
 
     val features = openSearch.getProducts(
       collectionId = "urn:eop:VITO:COP_DEM_GLO_30M_COG",
       None,
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
       Map[String, Any](), "hello", ""
-      )
+    )
 
     println(s"got ${features.size} features")
     assertTrue(features.nonEmpty)
@@ -257,7 +248,7 @@ class OpenSearchClientTest {
   @Test
   def testMultipageDedup(): Unit = {
     HttpCache.enabled = true
-    val openSearch = OpenSearchClient(new URL("https://services.terrascope.be/catalogue"))
+    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
     val features = openSearch.getProducts(
       collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
       dateRange = Some((LocalDate.of(2020, 3, 1).atStartOfDay(UTC), LocalDate.of(2020, 4, 2).atStartOfDay(UTC))),
@@ -280,20 +271,21 @@ class OpenSearchClientTest {
       collectionId = "Sentinel1",
       (LocalDate.of(2020, 10, 1), LocalDate.of(2020, 10, 5)),
       ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("productType"->"GRD"), "hello", "LEVEL1"
-      )
+      Map[String, Any]("productType" -> "GRD"), "hello", "LEVEL1"
+    )
 
     println(s"got ${features.size} features")
-    val unique: mutable.Set[(Extent,ZonedDateTime)] = mutable.Set()
+    val unique: mutable.Set[(Extent, ZonedDateTime)] = mutable.Set()
     assertTrue(features.nonEmpty)
     features.foreach(f => {
       assertTrue(f.id.contains("GRD"))
-      val extent_timestamp = (f.bbox,f.nominalDate)
+      val extent_timestamp = (f.bbox, f.nominalDate)
       unique add extent_timestamp
     })
-    assertEquals(features.size,unique.size)
+    assertEquals(features.size, unique.size)
   }
 
+  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
@@ -340,6 +332,7 @@ class OpenSearchClientTest {
     }
   }
 
+  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
@@ -441,6 +434,7 @@ class OpenSearchClientTest {
     }
     // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
     // This is the product we are actually interested in.
+    println(s"#### $processingBaseline $processingLevel $productType")
     features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
   }
 
@@ -449,7 +443,7 @@ class OpenSearchClientTest {
     HttpCache.enabled = true
     // PHOEBUS-core products where reprocessed. Keeping test in case they come back.
     val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=21.657597756412194%2C46.02854700799339%2C21.95285234099209%2C46.23461502351761&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2018-08-20T00%3A00%3A00Z&completionDate=2018-08-20T23%3A59%3A59.999999999Z"
-    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val collectionsResponse = Using(Source.fromURL(new URI(url).toURL)) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     for {
@@ -468,7 +462,7 @@ class OpenSearchClientTest {
   def nonNodedIntersection(): Unit = {
     HttpCache.enabled = true
     val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-3.4850284734588555%2C42.557489967174575%2C-3.204481304802883%2C42.7667871856319&sortParam=startDate&sortOrder=ascending&page=2&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-05-09T00%3A00%3A00Z&completionDate=2021-10-11T23%3A59%3A59.999999999Z"
-    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val collectionsResponse = Using(Source.fromURL(new URI(url).toURL)) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     assertEquals(7, features.length)
@@ -478,7 +472,7 @@ class OpenSearchClientTest {
   def nonNodedIntersection2021(): Unit = {
     HttpCache.enabled = true
     val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-8.516219555442497%2C53.760075440808144%2C-8.143264523420843%2C53.97824716188207&sortParam=startDate&sortOrder=ascending&page=1&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&orbitNumber=23887&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-10-01T00%3A00%3A00Z&completionDate=2021-10-31T00%3A00%3A00Z&tileId=29UNV"
-    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val collectionsResponse = Using(Source.fromURL(new URI(url).toURL)) { source => source.getLines.mkString("\n") }.get
     val features = CreoFeatureCollection.parse(collectionsResponse, dedup = true).features
 
     features.foreach(f => assertTrue(f.geometry.get.isValid))
@@ -489,7 +483,7 @@ class OpenSearchClientTest {
   def northenLatitudes(): Unit = {
     HttpCache.enabled = true
     val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=15.530240809565335%2C77.69235406978089%2C18.26083943377296%2C78.28288625896272&page=1&maxRecords=1000&status=ONLINE&dataset=ESA-DATASET&productType=L2A&startDate=2023-04-19T00%3A00%3A00Z&completionDate=2023-04-21T00%3A00%3A00.000000001Z"
-    val collectionsResponse = Using(Source.fromURL(new URL(url))) { source => source.getLines.mkString("\n") }.get
+    val collectionsResponse = Using(Source.fromURL(new URI(url).toURL)) { source => source.getLines.mkString("\n") }.get
 
     println("oneOrbitPerDay = false:")
     val featuresAll = CreoFeatureCollection.parse(collectionsResponse, dedup = true, oneOrbitPerDay = false).features

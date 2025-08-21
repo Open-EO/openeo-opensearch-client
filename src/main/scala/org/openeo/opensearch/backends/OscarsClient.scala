@@ -31,7 +31,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
         .param("count", "1")
         .params(attributeValues.mapValues(_.toString).toSeq)
 
-      try  {
+      try {
         val json = execute(getProducts)
         FeatureCollection.parse(json).features.headOption.map(_.nominalDate.toLocalDate)
       } catch {
@@ -52,10 +52,10 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
                            processingLevel: String): Seq[Feature] = {
     def from(page: Int): Seq[Feature] = {
       val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
-                                                                          dateRange, bbox,
-                                                                          attributeValues, correlationId,
-                                                                          processingLevel,
-                                                                          page)
+        dateRange, bbox,
+        attributeValues, correlationId,
+        processingLevel,
+        page)
       if (itemsPerPage <= 0) Seq() else features ++ from(page + itemsPerPage)
     }
 
@@ -67,10 +67,10 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
   }
 
   override protected def getProductsFromPage(collectionId: String,
-                                     dateRange: Option[(ZonedDateTime, ZonedDateTime)],
-                                     bbox: ProjectedExtent,
-                                     attributeValues: Map[String, Any], correlationId: String,
-                                     processingLevel: String, page: Int): FeatureCollection = {
+                                             dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                             bbox: ProjectedExtent,
+                                             attributeValues: Map[String, Any], correlationId: String,
+                                             processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
     val propagatableAttributeValues =
@@ -88,17 +88,19 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
       .param("bbox", Array(xMin, yMin, xMax, yMax).map(coordinateFormat.format) mkString ",")
       .param("sortKeys", "title") // paging requires deterministic order
       .param("startIndex", page.toString)
-      .params(propagatableAttributeValues.mapValues(_.toString).toMap)
+      .params(propagatableAttributeValues.map {
+        case (key, value) => (key, value.toString)
+      }.toMap)
       .param("clientId", clientId(correlationId))
 
     val cloudCover = attributeValues.get("eo:cloud_cover")
-    if(cloudCover.isDefined) {
-      getProducts = getProducts.param("cloudCover",s"[0,${cloudCover.get.toString.toDouble.toInt}]")
+    if (cloudCover.isDefined) {
+      getProducts = getProducts.param("cloudCover", s"[0,${cloudCover.get.toString.toDouble.toInt}]")
     }
 
     val relativeOrbit = attributeValues.get("sat:relative_orbit")
-    if(relativeOrbit.isDefined) {
-      getProducts = getProducts.param("relativeOrbitNumber",s"${relativeOrbit.get.toString}")
+    if (relativeOrbit.isDefined) {
+      getProducts = getProducts.param("relativeOrbitNumber", s"${relativeOrbit.get.toString}")
     }
 
     val orbitdirection = attributeValues.get("orbitDirection").orElse(attributeValues.get("sat:orbit_state"))
@@ -171,7 +173,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
       .param("clientId", clientId(correlationId))
 
     val json = execute(getCollections)
-    FeatureCollection.parse(json, dedup=false).features
+    FeatureCollection.parse(json, dedup = false).features
   }
 
   override final def equals(other: Any): Boolean = other match {

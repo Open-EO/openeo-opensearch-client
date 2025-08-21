@@ -47,7 +47,7 @@ package object opensearch {
       try
         return action
       catch {
-        case e: Exception if retryable(e) => Unit
+        case e: Exception if retryable(e) => ()
       }
 
       timeUnit.sleep(amount)

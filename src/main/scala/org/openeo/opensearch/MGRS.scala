@@ -36,7 +36,7 @@ object MGRS {
 
   def decode(mgrsString: String): ((Int, Int, Int, Char), Double) = {
 
-    if (mgrsString.length == 0) {
+    if (mgrsString.isEmpty) {
       throw new IllegalArgumentException("Cannot generate MGRS from empty string")
     }
 
@@ -69,11 +69,11 @@ object MGRS {
     }
 
     i += 1
-    val hunK = mgrsString.drop(i).take(2)
-    var set = get100kSetForZone(zoneNumber)
+    val hunK = mgrsString.slice(i, i + 2)
+    val set = get100kSetForZone(zoneNumber)
     i += 2
 
-    var east100k = getEastingFromChar(hunK.charAt(0), set)
+    val east100k = getEastingFromChar(hunK.charAt(0), set)
     var north100k = getNorthingFromChar(hunK.charAt(1), set)
 
     // We have a bug where the northing may be 2000000 too low.

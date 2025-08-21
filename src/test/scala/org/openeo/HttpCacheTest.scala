@@ -11,7 +11,7 @@ import scala.language.postfixOps
 
 object HttpCacheTest {
   def sourceToBytes(source: InputStream): Array[Byte] = {
-    Stream.continually(source.read()).takeWhile(-1 !=).map(_.toByte).toArray
+    LazyList.continually(source.read()).takeWhile(-1 !=).map(_.toByte).toArray
   }
 }
 
@@ -99,7 +99,7 @@ class HttpCacheTest {
     val cachePath = new File("""/\D:/""".r.replaceAllIn(getClass.getResource("/org/openeo/httpsCache/").getPath + "openeo.org/images/openeo_navbar_logo.png", "/"))
     cachePath.delete()
 
-    Seq(url, url).par.foreach(url => {
+    Seq(url, url).foreach(url => {
       val source = new URL(url).openStream()
       val content = sourceToBytes(source)
       assertEquals(-119, content(0))
