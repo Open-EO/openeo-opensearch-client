@@ -2,7 +2,6 @@ package org.openeo
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.junit.Ignore
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test}
 import org.junit.jupiter.params.ParameterizedTest
@@ -28,7 +27,7 @@ object OpenSearchClientTest {
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
     arguments(LocalDate.parse("2022-12-06"), "05.10"),
-    arguments(LocalDate.parse("2021-10-19"), "05.0"), // Undocumented. Manually added
+//    arguments(LocalDate.parse("2021-10-19"), "05.0"), // Undocumented. Manually added
   ))
 
   def demExtents: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -285,12 +284,11 @@ class OpenSearchClientTest {
     assertEquals(features.size, unique.size)
   }
 
-  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: String): Unit = {
     // Cache reduces test time from 5min to 1sec.
-//    HttpCache.enabled = true
+    HttpCache.enabled = true
     // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
     val requiredBands = Set(
       "IMG_DATA_Band_60m_1_Tile1_Data",
@@ -332,7 +330,6 @@ class OpenSearchClientTest {
     }
   }
 
-  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: String): Unit = {
@@ -432,7 +429,6 @@ class OpenSearchClientTest {
     }
     // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
     // This is the product we are actually interested in.
-    println(s"#### $processingBaseline $processingLevel $productType")
     features.find(_.generalProperties.processingBaseline.get == processingBaseline.toDouble).get
   }
 

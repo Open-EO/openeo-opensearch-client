@@ -80,7 +80,7 @@ object OpenSearchResponses {
 
 
   case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[mutable.Buffer[String]] = None)
+                  bandNames: Option[Seq[String]] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -108,7 +108,7 @@ object OpenSearchResponses {
     def withResolution(resolution: Double): FeatureBuilder = copy(resolution = Some(resolution))
 
     def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala))
+      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala.toSeq))
       if (links != null) {
         copy(links = links :+ link)
       } else {
@@ -118,7 +118,7 @@ object OpenSearchResponses {
     }
 
     def addLink(href: String, title: String, bandNames: java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), None, Option(bandNames.asScala))
+      val link = Link(URI.create(href), Option(title), None, Option(bandNames.asScala.toSeq))
       if (links != null) {
         copy(links = links :+ link)
       } else {
