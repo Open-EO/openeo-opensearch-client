@@ -11,6 +11,7 @@ import java.net.{URI, URL}
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import scala.collection.Map
+import scala.collection.parallel.CollectionConverters._
 
 object CreodiasClient{
   private val logger = LoggerFactory.getLogger(classOf[CreodiasClient])
@@ -64,14 +65,14 @@ class CreodiasClient(val endpoint: URL = new URI("https://catalogue.dataspace.co
         }
       }
 
-      from(dateRange.get._1).flatMap(range => {
+      from(dateRange.get._1).par.flatMap(range => {
         getProductsSplitAntimeridian(collectionId,
           Some(range), bbox,
           attributeValues, correlationId,
           processingLevel
         )
       })
-    } else {
+    }.asInstanceOf[Seq[Feature]] else {
       getProductsSplitAntimeridian(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
     }
   }
