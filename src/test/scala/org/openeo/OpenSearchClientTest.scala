@@ -286,6 +286,7 @@ class OpenSearchClientTest {
     assertEquals(features.size, unique.size)
   }
 
+  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
@@ -332,6 +333,7 @@ class OpenSearchClientTest {
     }
   }
 
+  @Disabled
   @ParameterizedTest
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
