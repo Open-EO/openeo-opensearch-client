@@ -179,7 +179,6 @@ class OpenSearchClientTest {
   /**
    * c-scale stac catalog is not stable
    */
-  @Ignore
   @Disabled
   @Test
   def testSTACGetProductsCScale(): Unit = {
