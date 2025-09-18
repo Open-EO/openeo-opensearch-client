@@ -80,7 +80,7 @@ object OpenSearchResponses {
 
 
   case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[Seq[String]] = None)
+                  bandNames: Option[Seq[String]] = None, rel: Option[String] = None)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -833,16 +833,16 @@ object OpenSearchResponses {
             val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =
-            if(tileIDMatcher.find()){
-              Some(tileIDMatcher.group(1))
-            }else{
-              Option.empty
-            }
+              if (tileIDMatcher.find()) Some(tileIDMatcher.group(1))
+              else None
+
+            val selfUrl = for (link <- links.find(_.rel contains "self")) yield link.href.toURL
+
             // All links will be filled in later. After old Products are dedupped away.
             Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry),
               generalProperties = properties,
               deduplicationOrderValue = deduplicationOrderValue,
-              cloudCover = cloudCover.getOrElse(0),
+              cloudCover = cloudCover.getOrElse(0), selfUrl = selfUrl
             )
           }
         }
