@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
-import java.net.{SocketTimeoutException, URI}
+import java.net.{SocketTimeoutException, URI, URL}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
@@ -146,7 +146,7 @@ object OpenSearchResponses {
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
-                     cloudCover: Double = 0,
+                     cloudCover: Double = 0, selfUrl: Option[URL] = None,
                     ) {
     crs = crs.orElse{ for {
       id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
@@ -328,7 +328,7 @@ object OpenSearchResponses {
     /**
      * Should only dedup when getting Products. Not when getting collections
      */
-    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published"): FeatureCollection = {
+    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published", selfUrlForFeatureId: Option[String => URL] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -400,7 +400,7 @@ object OpenSearchResponses {
 
             Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
               tileId, geometry = geometry, crs = crs, generalProperties=properties,
-              deduplicationOrderValue=deduplicationOrderValue,
+              deduplicationOrderValue=deduplicationOrderValue, selfUrl = selfUrlForFeatureId.map(_(id))
             )
           }
         }
