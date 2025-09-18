@@ -23,20 +23,12 @@ import scala.xml.XML
 
 object OpenSearchClientTest {
   def level1CParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
-    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
-    // No products with this processingBaseline 99.99 found for L2A
+    arguments(LocalDate.parse("2022-12-06"), "05.10"),
   ))
 
   def level2AParams: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
-//    arguments(LocalDate.parse("2021-03-30"), new java.lang.Double(3.00)),
-//    arguments(LocalDate.parse("2021-06-30"), new java.lang.Double(3.01)),
-//    arguments(LocalDate.parse("2022-01-25"), new java.lang.Double(4.00)),
-    arguments(LocalDate.parse("2022-12-06"), new java.lang.Double(5.09)),
-//    arguments(LocalDate.parse("2018-08-31"), new java.lang.Double(99.99)), // not longer there
-    arguments(LocalDate.parse("2021-10-19"), new java.lang.Double(5.0)), // Undocumented. Manually added
+    arguments(LocalDate.parse("2022-12-06"), "05.10"),
+    //    arguments(LocalDate.parse("2021-10-19"), "05.0"), // Undocumented. Manually added
   ))
 
   def demExtents: java.util.stream.Stream[Arguments] = util.Arrays.stream(Array(
@@ -296,7 +288,7 @@ class OpenSearchClientTest {
 
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
-  def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
+  def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: String): Unit = {
     // Cache reduces test time from 5min to 1sec.
     HttpCache.enabled = true
     // Bands found with JSONPath: $..[?(@.id=="SENTINEL2_L1C")]..["eo:bands"][?(@.aliases)].aliases
@@ -342,7 +334,7 @@ class OpenSearchClientTest {
 
   @ParameterizedTest
   @MethodSource(Array("level2AParams"))
-  def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: java.lang.Double): Unit = {
+  def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: String): Unit = {
     // Cache reduces test time from 3min to 2sec.
     HttpCache.enabled = true
     HttpCache.randomErrorEnabled = false // To test retry
@@ -386,7 +378,7 @@ class OpenSearchClientTest {
   }
 
   private def testManifestLevelSentinel2(date: LocalDate,
-                                         processingBaseline: Double,
+                                         processingBaseline: String,
                                          productType: String,
                                          processingLevel: String,
                                          requiredBands: Set[String]
@@ -423,9 +415,7 @@ class OpenSearchClientTest {
       ProjectedExtent(extentTAP4326, LatLng),
       Map(
         "productType" -> productType,
-        "processingBaseline" -> {
-          if (processingBaseline == 5) "05.00" else processingBaseline
-        }, // avoid old products getting dedupped away
+        "processingBaseline" -> processingBaseline, // avoid old products getting dedupped away
       ),
       correlationId = "hello",
       processingLevel,
@@ -441,7 +431,7 @@ class OpenSearchClientTest {
     }
     // Generally, each date a product baseline is released, there will a be a product with that baseline in the first few days.
     // This is the product we are actually interested in.
-    features.find(_.generalProperties.processingBaseline.get == processingBaseline).get
+    features.find(_.generalProperties.processingBaseline.get == processingBaseline.toDouble).get
   }
 
   @Test
