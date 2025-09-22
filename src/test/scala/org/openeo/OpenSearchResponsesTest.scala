@@ -23,7 +23,7 @@ class OpenSearchResponsesTest {
       .addLink("url", "title", 0.0, java.util.Arrays.asList("B01","B02"))
       .withCRS("EPSG:32631")
       .withGeometryFromWkt("POLYGON ((0 0, 0 10, 10 10, 10 0, 0 0))")
-      .build()
+      .build
 
     assertEquals("id",f.id)
     assertEquals(Extent(0,0,10,10),f.bbox)

@@ -6,7 +6,7 @@ import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, dedupFeatures}
 import scalaj.http.{HttpOptions, HttpStatusException}
 
-import java.net.URL
+import java.net.{URL, URLEncoder}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import java.time.{LocalDate, ZonedDateTime}
@@ -114,11 +114,14 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
 
     val json = execute(getProducts)
 
+    def urlEncode(s: String): String = URLEncoder.encode(s, "utf-8")
+
     val resultCollection = FeatureCollection.parse(
       json,
       isUTM,
       dedup = true,
-      deduplicationPropertyJsonPath = deduplicationPropertyJsonPath
+      deduplicationPropertyJsonPath = deduplicationPropertyJsonPath,
+      selfUrlForFeatureId = Some(featureId => new URL(s"$endpoint/products?collection=${urlEncode(collectionId)}&uid=${urlEncode(featureId)}")),
     )
 
     filterByDateRange(
