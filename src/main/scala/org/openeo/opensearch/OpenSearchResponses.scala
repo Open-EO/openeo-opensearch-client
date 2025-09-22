@@ -96,7 +96,7 @@ object OpenSearchResponses {
 
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
+                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URL] = None,
                                    ) {
 
     def withId(id:String): FeatureBuilder = copy(id=id)
@@ -139,7 +139,12 @@ object OpenSearchResponses {
 
     def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
 
-    def build(): Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate , links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent)
+    def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URL(selfUrl)))
+
+    def build: Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate,
+      links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
+      generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl
+    )
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
