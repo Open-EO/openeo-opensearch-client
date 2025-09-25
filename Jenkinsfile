@@ -3,6 +3,9 @@
 @Library('lib@openeo_opensearch_client')_
 
 javaPipeline {
+  environment {
+    JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+  }
   package_name  = 'openeo-opensearch-client'
   maven_version = '3.9.11'
   create_git_tag_job = true
