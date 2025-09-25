@@ -2,6 +2,8 @@
 
 @Library('lib@openeo_opensearch_client')_
 
+def jdk_version = '21'
+
 javaPipeline {
   package_name  = 'openeo-opensearch-client'
   maven_version = '3.9.11'
