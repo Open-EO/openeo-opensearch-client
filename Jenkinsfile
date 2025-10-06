@@ -2,7 +2,7 @@
 
 @Library('lib@openeo_opensearch_client')_
 
-def jdk_version = '21'
+def jdk_version = '11'
 
 javaPipeline {
   package_name  = 'openeo-opensearch-client'
