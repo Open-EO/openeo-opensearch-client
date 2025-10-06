@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
 import org.openeo.HttpCache
 import org.openeo.opensearch.to_0_360_range
+import scalaj.http.HttpRequest
 
 import java.time.LocalDate
 
@@ -34,8 +35,7 @@ class CreodiasClientTest {
 
   @Test
   def testGetProductsAntimeridian(): Unit = {
-    HttpCache.enabled = true
-    val client = CreodiasClient()
+    val client = cachingCreoClient
 
     val features = client.getProducts(
       "GLOBAL-MOSAICS",
@@ -52,10 +52,18 @@ class CreodiasClientTest {
     }
   }
 
+  private def cachingCreoClient = {
+    new CreodiasClient() {
+      override protected def execute(request: HttpRequest): String = {
+        HttpCache.httpsCache.readString(request.url)
+      }
+    }
+  }
+
   @Test
   def testGetProductsAntimeridian2(): Unit = {
-    HttpCache.enabled = true
-    val client = CreodiasClient()
+
+    val client = cachingCreoClient
 
     val features = client.getProducts(
       "GLOBAL-MOSAICS",
