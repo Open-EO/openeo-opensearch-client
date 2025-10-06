@@ -245,10 +245,10 @@ class OpenSearchClientTest {
 
   @Test
   def testMultipageDedup(): Unit = {
-    HttpCache.enabled = true
+
     val openSearch = new OscarsClient(new URI("https://services.terrascope.be/catalogue").toURL, false){
       override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.url)
+        HttpCache.httpsCache.readString(request.urlBuilder(request))
       }
     }
 
