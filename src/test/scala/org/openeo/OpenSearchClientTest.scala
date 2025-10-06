@@ -380,7 +380,7 @@ class OpenSearchClientTest {
   private def cachingCreoClient = {
     new CreodiasClient() {
       override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.url)
+        HttpCache.httpsCache.readString(request.urlBuilder(request))
       }
     }
   }
