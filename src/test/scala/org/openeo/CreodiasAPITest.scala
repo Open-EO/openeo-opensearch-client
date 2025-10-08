@@ -2,7 +2,7 @@ package org.openeo
 
 import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.backends.CreodiasClient
@@ -38,10 +38,16 @@ class CreodiasAPITest {
     val attributeValues = Map[String, Any]("processingLevel" -> "LEVEL1", "sensorMode" -> "IW", "productType" -> "GRD")
 
     // The parser in getProducts should be able to handle these incorrect multipolygons.
-    new CreodiasClient().getProducts(
+    val features1 = new CreodiasClient().getProducts(
       "Sentinel1", Some(fromDate, toDate),
       bbox, attributeValues
     )
+    assertEquals(2, features1.size)
+    val features2 = new CreodiasClient(allowParallelQuery = true).getProducts(
+      "Sentinel1", Some(fromDate, toDate),
+      bbox, attributeValues
+    )
+    assertEquals(2, features2.size)
   }
 
   @Test

@@ -72,7 +72,7 @@ class CreodiasClient(val endpoint: URL = new URI("https://catalogue.dataspace.co
           processingLevel
         )
       })
-    }.asInstanceOf[Seq[Feature]] else {
+    }.toList else {
       getProductsSplitAntimeridian(collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel)
     }
   }
