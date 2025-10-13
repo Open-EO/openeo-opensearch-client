@@ -5,8 +5,8 @@ import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.util.UTM
 import geotrellis.proj4.{CRS, LatLng}
+import io.circe._
 import io.circe.generic.auto._
-import io.circe.{ACursor, Decoder, HCursor, Json, JsonObject}
 import geotrellis.vector._
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier
 import org.slf4j.LoggerFactory
@@ -26,11 +26,12 @@ import java.net.{SocketTimeoutException, URI, URL}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
-import java.util.UUID
 import java.util.regex.Pattern
-import java.util.Collections
-import scala.collection.JavaConverters._
+import java.util.{Collections, UUID}
+import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.matching.Regex
@@ -55,14 +56,14 @@ object OpenSearchResponses {
    * @param title
    * @return
    */
-  def sentinel2Reformat(title: String, href:String): String = {
+  def sentinel2Reformat(title: String, href: String): String = {
     if (title == "S2_Level-2A_Tile1_Data" && href.contains("L2A")) {
       // logic for processingBaseline 2.07 and 99.99
       return "S2_Level-2A_Tile1_Metadata"
     }
     val patternAuxData: Regex = """(...)_DATA_(\d{2}m)_Tile1_Data""".r
 
-    val patternHref:Regex = """.*_(B.._\d{2}m).jp2""".r
+    val patternHref: Regex = """.*_(B.._\d{2}m).jp2""".r
 
     href match {
       case patternHref(resBand) => return f"IMG_DATA_Band_${resBand}_Tile1_Data"
@@ -70,9 +71,8 @@ object OpenSearchResponses {
     }
 
     title match {
-      case patternAuxData(name,resolution) =>
-        return f"IMG_DATA_Band_${name}_${resolution}_Tile1_Data"
-
+      case patternAuxData(name, resolution) =>
+        f"IMG_DATA_Band_${name}_${resolution}_Tile1_Data"
       case _ =>
         title
     }
@@ -94,56 +94,59 @@ object OpenSearchResponses {
 
   def featureBuilder(): FeatureBuilder = FeatureBuilder()
 
-  case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link]=Array(), resolution: Option[Double] = None,
+  case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URL] = None,
                                    ) {
 
-    def withId(id:String): FeatureBuilder = copy(id=id)
-    def withBBox(minx:Double,miny:Double,maxx:Double,maxy:Double): FeatureBuilder = copy(bbox=Extent(minx,miny,maxx,maxy))
-    def withNominalDate(nominalDate:String): FeatureBuilder = copy(nominalDate=ZonedDateTime.parse(nominalDate))
+    def withId(id: String): FeatureBuilder = copy(id = id)
 
-    def withResolution(resolution:Double): FeatureBuilder = copy(resolution=Some(resolution))
+    def withBBox(minx: Double, miny: Double, maxx: Double, maxy: Double): FeatureBuilder = copy(bbox = Extent(minx, miny, maxx, maxy))
 
-    def addLink(href:String, title:String, pixelValueOffset:Double, bandNames:java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala))
-      if(links !=null) {
+    def withNominalDate(nominalDate: String): FeatureBuilder = copy(nominalDate = ZonedDateTime.parse(nominalDate))
+
+    def withResolution(resolution: Double): FeatureBuilder = copy(resolution = Some(resolution))
+
+    def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala.toSeq))
+      if (links != null) {
         copy(links = links :+ link)
-      }else{
+      } else {
         copy(links = Array(link))
       }
 
     }
 
-    def addLink(href:String, title:String, bandNames:java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), None, Option(bandNames.asScala))
-      if(links !=null) {
+    def addLink(href: String, title: String, bandNames: java.util.List[String]): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), None, Option(bandNames.asScala.toSeq))
+      if (links != null) {
         copy(links = links :+ link)
-      }else{
+      } else {
         copy(links = Array(link))
       }
 
     }
 
-    def withTileId(tileId:String): FeatureBuilder = copy(tileID=Some(tileId))
+    def withTileId(tileId: String): FeatureBuilder = copy(tileID = Some(tileId))
 
     def withGeometry(geometry: Geometry): FeatureBuilder = copy(geometry = Some(geometry))
+
     def withGeometryFromWkt(geometryWkt: String): FeatureBuilder = withGeometry(geometryWkt.parseWKT())
 
-    def withCRS(crs:String): FeatureBuilder = copy(crs=Some(CRS.fromName(crs)))
+    def withCRS(crs: String): FeatureBuilder = copy(crs = Some(CRS.fromName(crs)))
 
     def withGeneralProperties(published: Option[ZonedDateTime] = None, orbitNumber: Option[Int] = None,
-                             organisationName: Option[String] = None, instrument: Option[String] = None,
-                             processingBaseline: Option[Double] = None): FeatureBuilder =
+                              organisationName: Option[String] = None, instrument: Option[String] = None,
+                              processingBaseline: Option[Double] = None): FeatureBuilder =
       copy(generalProperties = GeneralProperties(published, orbitNumber, organisationName, instrument, processingBaseline))
 
-    def withRasterExtent( minX:Double, minY:Double, maxX:Double, maxY:Double): FeatureBuilder = copy(rasterExtent=Some(Extent(minX,minY,maxX,maxY)))
+    def withRasterExtent(minX: Double, minY: Double, maxX: Double, maxY: Double): FeatureBuilder = copy(rasterExtent = Some(Extent(minX, minY, maxX, maxY)))
 
     def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URL(selfUrl)))
 
-    def build: Feature = Feature(id=id , bbox= bbox , nominalDate= nominalDate,
+    def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
-      generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl
+      generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl,
     )
   }
 
@@ -153,15 +156,17 @@ object OpenSearchResponses {
                      deduplicationOrderValue: Option[String] = None,
                      cloudCover: Double = 0, selfUrl: Option[URL] = None,
                     ) {
-    crs = crs.orElse{ for {
-      id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
-      utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
-    } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt) }
-    if(tileID.isDefined && crs.isDefined && crs.get.proj4jCrs.getProjection.getName == "utm") {
+    crs = crs.orElse {
+      for {
+        id <- tileID if id.matches("[0-9]{2}[A-Z]{3}")
+        utmEpsgStart = if (id.charAt(2) >= 'N') "326" else "327"
+      } yield CRS.fromEpsgCode((utmEpsgStart + id.substring(0, 2)).toInt)
+    }
+    if (tileID.isDefined && crs.isDefined && crs.get.proj4jCrs.getProjection.getName == "utm") {
       val bboxUTM = MGRS.mgrsToSentinel2Extent(tileID.get)
       rasterExtent = Some(bboxUTM)
 
-    }else if(crs.contains(LatLng)){
+    } else if (crs.contains(LatLng)) {
       rasterExtent = Some(bbox)
     }
 
@@ -197,7 +202,7 @@ object OpenSearchResponses {
         if (diceScore < 0.99) return false // Threshold is based on gut feeling
       } catch {
         // Polygon intersections can have many edge cases.
-        // Errors are probably un-avoidable, so log and go on:
+        // Errors are probably unavoidable, so log and go on:
         case e: Throwable =>
           logger.warn("Got error while checking if polygons are duplicate: " + e.toString)
           return false
@@ -343,7 +348,7 @@ object OpenSearchResponses {
             links <- c.downField("properties").downField("links").as[Map[String, Array[Link]]]
             resolution = c.downField("properties").downField("productInformation").downField("resolution").downArray.as[Double].toOption
             maybeCRS = c.downField("properties").downField("productInformation").downField("referenceSystemIdentifier").as[String].toOption
-            tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_ ("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
+            tileId = c.downField("properties").downField("acquisitionInformation").as[List[JsonObject]].toOption.flatMap(params => params.find(n => n.contains("acquisitionParameters")).flatMap(_("acquisitionParameters")).map(_ \\ "tileId")).flatMap(_.headOption.flatMap(_.asString))
             properties <- c.downField("properties").as[GeneralProperties]
           } yield {
             val Array(xMin, yMin, xMax, yMax) = bbox
@@ -351,26 +356,26 @@ object OpenSearchResponses {
             val geometry = c.downField("geometry").as[Geometry].toOption
             val prefix = "https://www.opengis.net/def/crs/EPSG/0/"
             val crs =
-            if(isUTM && tileId.isEmpty){
-              //this is ugly, but not having a crs is worse, should be fixed in the catalogs
-              Some(UTM.getZoneCrs(extent.center.x,extent.center.y))
-            }else {
-              if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
-                try {
-                  val epsg = maybeCRS.get.substring(prefix.length)
-                  Some(CRS.fromEpsgCode(epsg.toInt))
-
-                }catch {
-                  case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
-                    None
-                }
-              }else if(tileId.contains("GLOBE")){
-                //CGLS specific convention to set tileId to 'GLOBE'
-                Some(LatLng)
+              if (isUTM && tileId.isEmpty) {
+                //this is ugly, but not having a crs is worse, should be fixed in the catalogs
+                Some(UTM.getZoneCrs(extent.center.x, extent.center.y))
               } else {
-                None
+                if (maybeCRS.isDefined && maybeCRS.get.startsWith(prefix)) {
+                  try {
+                    val epsg = maybeCRS.get.substring(prefix.length)
+                    Some(CRS.fromEpsgCode(epsg.toInt))
+
+                  } catch {
+                    case e: Exception => logger.debug(s"Invalid projection while parsing ${id}, error: ${e.getMessage}")
+                      None
+                  }
+                } else if (tileId.contains("GLOBE")) {
+                  //CGLS specific convention to set tileId to 'GLOBE'
+                  Some(LatLng)
+                } else {
+                  None
+                }
               }
-            }
 
             var res = resolution
             if (res.isEmpty) {
@@ -404,8 +409,8 @@ object OpenSearchResponses {
             } else None
 
             Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
-              tileId, geometry = geometry, crs = crs, generalProperties=properties,
-              deduplicationOrderValue=deduplicationOrderValue, selfUrl = selfUrlForFeatureId.map(_(id))
+              tileId, geometry = geometry, crs = crs, generalProperties = properties,
+              deduplicationOrderValue = deduplicationOrderValue, selfUrl = selfUrlForFeatureId.map(_(id)),
             )
           }
         }
@@ -445,16 +450,17 @@ object OpenSearchResponses {
 
             val harmonizedLinks = links.map { t =>
               val href = t._2.href
-              if(toS3URL){
+              if (toS3URL) {
                 val bucket = href.getHost.split('.')(0)
                 val s3href = URI.create("s3://" + bucket + href.getPath)
                 Link(s3href, Some(t._1))
               }
-              else{
-                Link(href, Some(t._1)) }
+              else {
+                Link(href, Some(t._1))
+              }
             }
             Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
-              generalProperties=properties)
+              generalProperties = properties)
           }
         }
       }
@@ -485,15 +491,15 @@ object OpenSearchResponses {
 
 
     private val creoClient = {
-      if(s3Endpoint!="") {
+      if (s3Endpoint != "") {
         val uri =
-        if(s3Endpoint.startsWith("http")) {
-          new URI( s3Endpoint )
-        }else if(useHTTPS == "NO"){
-          new URI( "http://" + s3Endpoint )
-        }else{
-          new URI( "https://" + s3Endpoint )
-        }
+          if (s3Endpoint.startsWith("http")) {
+            new URI(s3Endpoint)
+          } else if (useHTTPS == "NO") {
+            new URI("http://" + s3Endpoint)
+          } else {
+            new URI("https://" + s3Endpoint)
+          }
         val retryCondition =
           OrRetryCondition.create(
             RetryCondition.defaultRetryCondition(),
@@ -508,7 +514,7 @@ object OpenSearchResponses {
             .build()
         val retryPolicy =
           RetryPolicy.defaultRetryPolicy()
-            .toBuilder()
+            .toBuilder
             .retryCondition(retryCondition)
             .backoffStrategy(backoffStrategy)
             .numRetries(30)
@@ -522,12 +528,12 @@ object OpenSearchResponses {
 
         // Access key must be specified either via environment variable (AWS_ACCESS_KEY_ID) or system property (aws.accessKeyId)
         Some(S3Client.builder.httpClientBuilder(UrlConnectionHttpClient.builder()
-          .socketTimeout(Duration.ofMinutes(1))
-          .connectionTimeout(Duration.ofMinutes(1)))
+            .socketTimeout(Duration.ofMinutes(1))
+            .connectionTimeout(Duration.ofMinutes(1)))
           .endpointOverride(uri).region(Region.of("RegionOne")).overrideConfiguration(overrideConfig)
-         .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
+          .serviceConfiguration(S3Configuration.builder.pathStyleAccessEnabled(true).build).build())
 
-      }else{
+      } else {
         Option.empty
       }
     }
@@ -538,10 +544,11 @@ object OpenSearchResponses {
 
     /**
      * Can return null!
+     *
      * @param pathArg
      * @return
      */
-    def loadMetadata(pathArg:String):InputStream = withRetries {
+    def loadMetadata(pathArg: String): InputStream = withRetries {
       val path = pathArg.replace("/vsis3/", "/")
       var gdalPrefix = ""
       if (path.startsWith("https://")) {
@@ -576,9 +583,9 @@ object OpenSearchResponses {
                   s"bucket: EODATA, " +
                   s"key: ${key}"
                 )
-                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTraceString
-                var cause = e.getCause
-                if(cause!=null) {
+                var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTrace.mkString("\n")
+                val cause = e.getCause
+                if (cause != null) {
                   msgStr += "\n Cause: " + cause + "   " + cause.getMessage
                 }
                 logger.warn(msgStr)
@@ -602,7 +609,7 @@ object OpenSearchResponses {
       }
     }
 
-    private def getGDALPrefix(path:String) = {
+    private def getGDALPrefix(path: String) = {
       var gdalPrefix = ""
       if (path.startsWith("https://")) {
         gdalPrefix = "/vsicurl"
@@ -616,22 +623,22 @@ object OpenSearchResponses {
 
       val gdalPrefix: String = getGDALPrefix(path)
       val inputStream: InputStream = loadMetadata(Paths.get(path, "manifest.safe").toString)
-      if(inputStream == null) {
+      if (inputStream == null) {
         return Seq.empty[Link]
       }
       val xml = XML.load(inputStream)
 
-      var links = (xml \\ "dataObject" )
-        .map((dataObject: Node) =>{
+      var links = (xml \\ "dataObject")
+        .map((dataObject: Node) => {
           val title = dataObject \\ "@ID"
           val fileLocation = dataObject \\ "fileLocation" \\ "@href"
           // Fix links in PB 2.08 products:
           val fileLocationString = fileLocation.toString()
             .replaceAll("""/dpc/app/facilities/PHOEBUS-core/PHOEBUS-core[^"]*?/\.S.._OPER[^"]*?/""", "/")
-          val filePath =s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocationString).normalize().toString}"
+          val filePath = s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}$path" + s"/${URI.create(fileLocationString).normalize().toString}"
 
-          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString,fileLocationString)))
-      })
+          Link(URI.create(filePath), Some(sentinel2Reformat(title.toString, fileLocationString)))
+        })
 
       // https://sentinels.copernicus.eu/web/sentinel/user-guides/sentinel-2-msi/product-types/level-2a
       val metadataUrl = links.find(l => l.title.contains("S2_Level-1C_Product_Metadata") || l.title.contains("S2_Level-2A_Product_Metadata"))
@@ -736,23 +743,24 @@ object OpenSearchResponses {
 
     /**
      * Creo catalogs do not point to the actual file, so we need to custom lookups
+     *
      * @param path
      * @return
      */
     private def getDEMPathFromInspire(path: String): Seq[Link] = {
       val gdalPrefix: String = getGDALPrefix(path)
       val inputStream: InputStream = loadMetadata(Paths.get(path, "INSPIRE.xml").toString)
-      if(inputStream == null) {
+      if (inputStream == null) {
         return Seq.empty[Link]
       }
       val xml = XML.load(inputStream)
 
-      (xml \\ "CI_Citation" \ "identifier" \ "RS_Identifier" \ "code"  )
-        .map((dataObject: Node) =>{
+      (xml \\ "CI_Citation" \ "identifier" \ "RS_Identifier" \ "code")
+        .map((dataObject: Node) => {
           val title = (dataObject \ "CharacterString").text
           val demPath = title.split(':')(2)
-          val fileLocation = s"${path}/${demPath}/DEM/${demPath}_DEM.tif"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${URI.create(fileLocation.toString).normalize().toString}"), Some("DEM"))
+          val fileLocation = s"$path/${demPath}/DEM/${demPath}_DEM.tif"
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${URI.create(fileLocation).normalize().toString}"), Some("DEM"))
         })
     }
 
@@ -781,9 +789,9 @@ object OpenSearchResponses {
 
       val parts = commonFilePrefix.split("_")
       val prefix = s"s1_rtc_${parts.last}_${parts.dropRight(1).mkString("_")}"
-      val suffixes = Seq("ANGLE", "AREA","MASK","VH","VV")
+      val suffixes = Seq("ANGLE", "AREA", "MASK", "VH", "VV")
 
-      suffixes.map(s=>Link(URI.create(s"${getGDALPrefix(path)}$path/${prefix}_$s.tif"),Some(s)))
+      suffixes.map(s => Link(URI.create(s"${getGDALPrefix(path)}$path/${prefix}_$s.tif"), Some(s)))
     }
 
     private def getGlobalMosaicsSentinel1FilePaths(path: String): Seq[Link] = {
@@ -901,6 +909,7 @@ object OpenSearchResponses {
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
     }
 
+    @tailrec
     private def retainTileIds(features: Array[Feature], tileIdValue: Option[Any]): Array[Feature] =
       tileIdValue match {
         case Some(pattern: String) => retainTileIds(features, tileIdValue = Some(Collections.singletonList(pattern)))
@@ -918,6 +927,7 @@ object OpenSearchResponses {
   }
 
   case class STACCollection(id: String)
+
   case class STACCollections(collections: Array[STACCollection])
 
   object STACCollections {
@@ -928,6 +938,7 @@ object OpenSearchResponses {
   }
 
   case class CreoCollection(name: String)
+
   case class CreoCollections(collections: Array[CreoCollection])
 
   object CreoCollections {

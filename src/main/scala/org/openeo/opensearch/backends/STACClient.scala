@@ -20,7 +20,7 @@ import scala.collection.Map
  *               From: https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/SCL.tif
  *               To: s3://sentinel-cogs/sentinel-s2-l2a-cogs/SCL.tif
  */
-class STACClient(private val endpoint: URL = new URL("https://earth-search.aws.element84.com/v0"),
+class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.element84.com/v0").toURL,
                  private val s3URLS: Boolean = true) extends OpenSearchClient {
 
   require(endpoint != null)

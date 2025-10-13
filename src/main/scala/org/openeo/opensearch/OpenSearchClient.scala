@@ -156,7 +156,7 @@ abstract class OpenSearchClient {
     if(response.isError) {
       if(response.contentType.contains("application/json") || response.contentType.contains("application/geo+json;charset=UTF-8")) {
         io.circe.parser.parse(response.body) match {
-          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: ${response.body}")
+          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: $failure")
           case Right(json) => throw new IOException(s"Exception while evaluating catalog request $url: ${json.findAllByKey("exceptionText").mkString(";")}${json.findAllByKey("ErrorMessage").mkString(";")} ")
         }
 
