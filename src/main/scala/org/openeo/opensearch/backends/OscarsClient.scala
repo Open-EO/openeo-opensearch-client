@@ -6,7 +6,7 @@ import org.openeo.opensearch.OpenSearchClient
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, dedupFeatures}
 import scalaj.http.{HttpOptions, HttpStatusException}
 
-import java.net.{URL, URLEncoder}
+import java.net.{URI, URL, URLEncoder}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.time.format.DateTimeFormatter.ISO_INSTANT
 import java.time.{LocalDate, ZonedDateTime}
@@ -123,7 +123,7 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
       isUTM,
       dedup = true,
       deduplicationPropertyJsonPath = deduplicationPropertyJsonPath,
-      selfUrlForFeatureId = Some(featureId => new URL(s"$endpoint/products?collection=${urlEncode(collectionId)}&uid=${urlEncode(featureId)}")),
+      selfUrlForFeatureId = Some(featureId => URI.create(s"$endpoint/products?collection=${urlEncode(collectionId)}&uid=${urlEncode(featureId)}")),
     )
 
     filterByDateRange(

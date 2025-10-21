@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.io.{FileInputStream, FileNotFoundException, InputStream}
 import java.lang.System.getenv
-import java.net.{SocketTimeoutException, URI, URL}
+import java.net.{SocketTimeoutException, URI}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalDate, ZonedDateTime}
@@ -96,7 +96,7 @@ object OpenSearchResponses {
 
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URL] = None,
+                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URI] = None,
                                    ) {
 
     def withId(id: String): FeatureBuilder = copy(id = id)
@@ -142,7 +142,7 @@ object OpenSearchResponses {
 
     def withRasterExtent(minX: Double, minY: Double, maxX: Double, maxY: Double): FeatureBuilder = copy(rasterExtent = Some(Extent(minX, minY, maxX, maxY)))
 
-    def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URL(selfUrl)))
+    def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URI(selfUrl)))
 
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
@@ -154,7 +154,7 @@ object OpenSearchResponses {
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
-                     cloudCover: Double = 0, selfUrl: Option[URL] = None,
+                     cloudCover: Double = 0, selfUrl: Option[URI] = None,
                     ) {
     crs = crs.orElse {
       for {
@@ -338,7 +338,7 @@ object OpenSearchResponses {
     /**
      * Should only dedup when getting Products. Not when getting collections
      */
-    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published", selfUrlForFeatureId: Option[String => URL] = None): FeatureCollection = {
+    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published", selfUrlForFeatureId: Option[String => URI] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -849,7 +849,7 @@ object OpenSearchResponses {
               if (tileIDMatcher.find()) Some(tileIDMatcher.group(1))
               else None
 
-            val selfUrl = for (link <- links.find(_.rel contains "self")) yield link.href.toURL
+            val selfUrl = for (link <- links.find(_.rel contains "self")) yield link.href
 
             // All links will be filled in later. After old Products are dedupped away.
             Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry),
