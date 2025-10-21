@@ -29,7 +29,6 @@ import java.time.{Duration, LocalDate, ZonedDateTime}
 import java.util.regex.Pattern
 import java.util.{Collections, UUID}
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.util.Using
@@ -80,7 +79,12 @@ object OpenSearchResponses {
 
 
   case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[Seq[String]] = None)
+                  bandNames: Option[Seq[String]] = None) {
+
+    override def toString: String = {
+      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")})"
+    }
+  }
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
