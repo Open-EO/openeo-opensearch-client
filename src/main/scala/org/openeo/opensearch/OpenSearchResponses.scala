@@ -79,10 +79,10 @@ object OpenSearchResponses {
 
 
   case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[Seq[String]] = None) {
+                  bandNames: Option[Seq[String]] = None, rel: Option[String] = None) {
 
     override def toString: String = {
-      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")})"
+      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
     }
   }
 
@@ -100,7 +100,7 @@ object OpenSearchResponses {
 
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
-                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
+                                    generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URI] = None,
                                    ) {
 
     def withId(id: String): FeatureBuilder = copy(id = id)
@@ -146,14 +146,19 @@ object OpenSearchResponses {
 
     def withRasterExtent(minX: Double, minY: Double, maxX: Double, maxY: Double): FeatureBuilder = copy(rasterExtent = Some(Extent(minX, minY, maxX, maxY)))
 
-    def build(): Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate, links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs, generalProperties = generalProperties, rasterExtent = rasterExtent)
+    def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URI(selfUrl)))
+
+    def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
+      links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
+      generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl,
+    )
   }
 
   case class Feature(id: String, bbox: Extent, nominalDate: ZonedDateTime, links: Array[Link], resolution: Option[Double],
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
-                     cloudCover: Double = 0,
+                     cloudCover: Double = 0, selfUrl: Option[URI] = None,
                     ) {
     crs = crs.orElse {
       for {
@@ -337,7 +342,7 @@ object OpenSearchResponses {
     /**
      * Should only dedup when getting Products. Not when getting collections
      */
-    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published"): FeatureCollection = {
+    def parse(json: String, isUTM: Boolean = false, dedup: Boolean = false, deduplicationPropertyJsonPath: String = "properties.published", selfUrlForFeatureId: Option[String => URI] = None): FeatureCollection = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -409,7 +414,7 @@ object OpenSearchResponses {
 
             Feature(id, extent, nominalDate, links.values.flatten.toArray, res,
               tileId, geometry = geometry, crs = crs, generalProperties = properties,
-              deduplicationOrderValue = deduplicationOrderValue,
+              deduplicationOrderValue = deduplicationOrderValue, selfUrl = selfUrlForFeatureId.map(_(id)),
             )
           }
         }
@@ -845,16 +850,16 @@ object OpenSearchResponses {
             val extent = theGeometry.extent
             val tileIDMatcher = TILE_PATTERN.matcher(id)
             val tileID =
-              if (tileIDMatcher.find()) {
-                Some(tileIDMatcher.group(1))
-              } else {
-                Option.empty
-              }
+              if (tileIDMatcher.find()) Some(tileIDMatcher.group(1))
+              else None
+
+            val selfUrl = for (link <- links.find(_.rel contains "self")) yield link.href
+
             // All links will be filled in later. After old Products are dedupped away.
             Feature(id, extent, nominalDate, links, resolution, tileID, Option(theGeometry),
               generalProperties = properties,
               deduplicationOrderValue = deduplicationOrderValue,
-              cloudCover = cloudCover.getOrElse(0),
+              cloudCover = cloudCover.getOrElse(0), selfUrl = selfUrl
             )
           }
         }
