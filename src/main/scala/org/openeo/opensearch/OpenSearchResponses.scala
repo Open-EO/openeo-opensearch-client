@@ -78,11 +78,10 @@ object OpenSearchResponses {
   }
 
 
-  case class Link(href: URI, title: Option[String], pixelValueOffset: Option[Double] = Some(0),
-                  bandNames: Option[Seq[String]] = None, rel: Option[String] = None) {
+  case class Link(href: URI, title: Option[String], rel: Option[String] = None, bandNames: Option[Seq[String]] = None, pixelValueScale: Option[Double] = Some(1.0), pixelValueOffset: Option[Double] = Some(0)) {
 
     override def toString: String = {
-      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
+      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueScale.map( po=> s"pixelValueOffset= ${po},")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
     }
   }
 
@@ -111,8 +110,18 @@ object OpenSearchResponses {
 
     def withResolution(resolution: Double): FeatureBuilder = copy(resolution = Some(resolution))
 
+    def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset))
+      if (links != null) {
+        copy(links = links :+ link)
+      } else {
+        copy(links = Array(link))
+      }
+
+    }
+
     def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), Option(pixelValueOffset), Option(bandNames.asScala.toSeq))
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Some(1.0), pixelValueOffset = Option(pixelValueOffset))
       if (links != null) {
         copy(links = links :+ link)
       } else {
@@ -122,7 +131,7 @@ object OpenSearchResponses {
     }
 
     def addLink(href: String, title: String, bandNames: java.util.List[String]): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), None, Option(bandNames.asScala.toSeq))
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = None, pixelValueOffset = None)
       if (links != null) {
         copy(links = links :+ link)
       } else {
@@ -685,7 +694,7 @@ object OpenSearchResponses {
                     offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
                       case Some(node) =>
                         val innerText = extractNodeText(node)
-                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                        l.copy(pixelValueScale = Some(1.0), pixelValueOffset = Some(innerText.toDouble))
                       case _ => l
                     }
                   } else l
@@ -725,7 +734,7 @@ object OpenSearchResponses {
                     offsetNodes.find(p => (p \\ "@band_id").toString() == bandId.toString) match {
                       case Some(node) =>
                         val innerText = extractNodeText(node)
-                        l.copy(pixelValueOffset = Some(innerText.toDouble))
+                        l.copy(pixelValueScale = Some(1.0), pixelValueOffset = Some(innerText.toDouble))
                       case _ => l
                     }
                   } else l
@@ -764,7 +773,7 @@ object OpenSearchResponses {
           val title = (dataObject \ "CharacterString").text
           val demPath = title.split(':')(2)
           val fileLocation = s"$path/${demPath}/DEM/${demPath}_DEM.tif"
-          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${URI.create(fileLocation).normalize().toString}"), Some("DEM"))
+          Link(URI.create(s"$gdalPrefix${if (path.startsWith("/")) "" else "/"}" + s"${URI.create(fileLocation).normalize().toString}"), title = Some("DEM"))
         })
     }
 
@@ -779,10 +788,7 @@ object OpenSearchResponses {
         for {
           productContents <- metadataXml \\ "LANDSAT_METADATA_FILE" \ "PRODUCT_CONTENTS"
           fileName <- productContents.child if fileName.label.startsWith(fileNameNodeLabelPrefix)
-        } yield Link(
-          href = URI.create(s"${getGDALPrefix(path)}$path/${fileName.text}"),
-          title = Some(fileName.label.drop(fileNameNodeLabelPrefix.length))
-        )
+        } yield Link(href = URI.create(s"${getGDALPrefix(path)}$path/${fileName.text}"), Some(fileName.label.drop(fileNameNodeLabelPrefix.length)))
       }
 
       links.get
