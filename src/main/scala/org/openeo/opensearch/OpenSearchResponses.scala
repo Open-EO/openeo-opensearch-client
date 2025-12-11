@@ -117,7 +117,6 @@ object OpenSearchResponses {
       } else {
         copy(links = Array(link))
       }
-
     }
 
     def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
@@ -127,7 +126,6 @@ object OpenSearchResponses {
       } else {
         copy(links = Array(link))
       }
-
     }
 
     def addLink(href: String, title: String, bandNames: java.util.List[String]): FeatureBuilder = {
@@ -137,7 +135,6 @@ object OpenSearchResponses {
       } else {
         copy(links = Array(link))
       }
-
     }
 
     def withTileId(tileId: String): FeatureBuilder = copy(tileID = Some(tileId))
