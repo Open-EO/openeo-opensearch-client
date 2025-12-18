@@ -117,6 +117,16 @@ object OpenSearchResponses {
       } else {
         copy(links = Array(link))
       }
+
+    }
+
+    def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Some(1.0), pixelValueOffset = Option(pixelValueOffset))
+      if (links != null) {
+        copy(links = links :+ link)
+      } else {
+        copy(links = Array(link))
+      }
     }
 
     def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
