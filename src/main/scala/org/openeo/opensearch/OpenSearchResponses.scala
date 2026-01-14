@@ -881,7 +881,11 @@ object OpenSearchResponses {
               featuresFiltered = keepOneOrbitPerDay(featuresFiltered)
             }
             val corruptTileProductIdentifiers =
-              Seq("/eodata/Sentinel-2/MSI/L2A_N0500/2018/03/27/S2A_MSIL2A_20180327T114351_N0500_R123_T29UMV_20230828T122340.SAFE")
+              Seq(
+                "/eodata/Sentinel-2/MSI/L2A_N0500/2018/03/27/S2A_MSIL2A_20180327T114351_N0500_R123_T29UMV_20230828T122340.SAFE",
+                "/eodata/Sentinel-2/MSI/L2A_N0500/2018/06/17/S2B_MSIL2A_20180617T080609_N0500_R078_T37UFP_20230826T121908.SAFE",
+                "/eodata/Sentinel-2/MSI/L2A_N0500/2023/09/08/S2B_MSIL2A_20230908T101559_N0510_R065_T32TPS_20241023T202405.SAFE"
+              )
 
             featuresFiltered = featuresFiltered
               .filterNot { feature =>
