@@ -183,6 +183,11 @@ class CreodiasClient(val endpoint: URL = new URI("https://catalogue.dataspace.co
       getProducts = getProducts.param("relativeOrbitNumber",s"${relativeOrbit.get.toString}")
     }
 
+    val platform = attributeValues.get("platform")
+    if(platform.isDefined) {
+      getProducts = getProducts.param("platform",platform.get.toString)
+    }
+
     if (dateRange.isDefined) {
       getProducts = getProducts
         .param("startDate", dateRange.get._1 format ISO_INSTANT)
