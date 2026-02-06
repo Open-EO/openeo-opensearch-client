@@ -577,21 +577,22 @@ object OpenSearchResponses {
           //reading from /eodata is extremely slow
           if (creoClient.isDefined) {
             val key = path.replace("/eodata/", "")
+            val bucket = "eodata"
             try {
-              creoClient.get.getObject(GetObjectRequest.builder().bucket("EODATA").key(key).build())
+              creoClient.get.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())
             } catch {
 
               case _: NoSuchKeyException =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
-                  s"bucket: EODATA, NoSuchKeyException, " +
+                  s"bucket: $bucket, NoSuchKeyException, " +
                   s"key: ${key}"
                 )
                 null
               case e: Throwable =>
                 logger.error(s"Error reading from S3: " +
                   s"endpoint: " + s3Endpoint + ", " +
-                  s"bucket: EODATA, " +
+                  s"bucket: $bucket, " +
                   s"key: ${key}"
                 )
                 var msgStr = "Error reading from S3 Exception:" + e + "     e.getMessage" + e.getMessage + "     stack: " + e.getStackTrace.mkString("\n")
