@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit.HOURS
 import scala.jdk.CollectionConverters._
 
 object GeotiffNoDateSearchClient {
-  val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  val logger = LoggerFactory.getLogger(classOf[GeotiffNoDateSearchClient])
 }
 
 class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String], val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {

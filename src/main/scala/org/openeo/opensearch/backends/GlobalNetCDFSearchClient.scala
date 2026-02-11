@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 object GlobalNetCDFSearchClient {
-  val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  val logger = LoggerFactory.getLogger(classOf[GlobalNetCDFSearchClient])
 }
 
 class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val gridExtent: Option[GridExtent[Long]] = Option.empty) extends OpenSearchClient {

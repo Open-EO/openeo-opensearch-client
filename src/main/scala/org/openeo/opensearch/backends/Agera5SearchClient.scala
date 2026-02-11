@@ -20,7 +20,7 @@ import scala.util.matching.Regex
 
 
 object Agera5SearchClient {
-  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  private val logger = LoggerFactory.getLogger(classOf[Agera5SearchClient])
 
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String]): OpenSearchClient = {
     new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
