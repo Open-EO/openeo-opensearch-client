@@ -10,7 +10,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.openeo.opensearch.OpenSearchResponses.Link
 import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 import java.net.URI
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 object GlobalNetCDFSearchClient {
-  val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  private val logger = LoggerFactory.getLogger(classOf[GlobalNetCDFSearchClient])
 }
 
 class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String], val dateRegex: Regex, val gridExtent: Option[GridExtent[Long]] = Option.empty) extends OpenSearchClient {
@@ -40,7 +40,7 @@ class GlobalNetCDFSearchClient(val dataGlob: String, val bands: util.List[String
     .expireAfterWrite(1, HOURS)
     .build(new CacheLoader[String, List[Path]] {
       override def load(dataGlob: String): List[Path] = {
-        logger.debug("Loading paths for glob: " + dataGlob)
+        logger.debug("Listing paths from glob: " + dataGlob)
         HdfsUtils.listFiles(new Path(s"file:$dataGlob"), new Configuration)
       }
     })
