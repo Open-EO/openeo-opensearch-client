@@ -20,7 +20,7 @@ import scala.util.matching.Regex
 
 
 object Agera5SearchClient {
-  private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+  private val logger = LoggerFactory.getLogger(classOf[Agera5SearchClient])
 
   def apply(endpoint: String, isUTM: Boolean, dateRegex: String, bands: util.List[String]): OpenSearchClient = {
     new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
@@ -67,8 +67,10 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
     .newBuilder()
     .expireAfterWrite(1, HOURS)
     .build(new CacheLoader[String, List[Path]] {
-      override def load(dataGlob: String): List[Path] =
+      override def load(dataGlob: String): List[Path] = {
+        logger.debug("Listing paths from glob: " + dataGlob)
         HdfsUtils.listFiles(new Path(s"file:$dataGlob"), new Configuration)
+      }
     })
 
   private def paths: List[Path] = pathsCache.get(dataGlob)
