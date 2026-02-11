@@ -67,8 +67,10 @@ class Agera5SearchClient(val dataGlob: String, val bands: util.List[String], val
     .newBuilder()
     .expireAfterWrite(1, HOURS)
     .build(new CacheLoader[String, List[Path]] {
-      override def load(dataGlob: String): List[Path] =
+      override def load(dataGlob: String): List[Path] = {
+        logger.debug("Loading paths for glob: " + dataGlob)
         HdfsUtils.listFiles(new Path(s"file:$dataGlob"), new Configuration)
+      }
     })
 
   private def paths: List[Path] = pathsCache.get(dataGlob)

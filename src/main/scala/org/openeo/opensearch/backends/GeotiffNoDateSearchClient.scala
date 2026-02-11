@@ -9,6 +9,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.openeo.opensearch.OpenSearchResponses.Link
 import org.openeo.opensearch.{OpenSearchClient, OpenSearchResponses}
+import org.slf4j.LoggerFactory
 
 import java.net.URI
 import java.time.ZonedDateTime
@@ -16,7 +17,12 @@ import java.util
 import java.util.concurrent.TimeUnit.HOURS
 import scala.jdk.CollectionConverters._
 
+object GeotiffNoDateSearchClient {
+  val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
+}
+
 class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[String], val defaultDate: String = "2020-01-01T00:00:00Z") extends OpenSearchClient {
+  import GeotiffNoDateSearchClient._
   require(dataGlob != null)
   require(bands != null)
   require(defaultDate != null)
@@ -27,6 +33,7 @@ class GeotiffNoDateSearchClient(val dataGlob: String, val bands: util.List[Strin
     .expireAfterWrite(1, HOURS)
     .build(new CacheLoader[String, List[Path]] {
       override def load(dataGlob: String): List[Path] = {
+        logger.debug("Loading paths for glob: " + dataGlob)
         if (dataGlob.startsWith("http")) {
           List(new Path(URI.create(dataGlob)))
         } else {
