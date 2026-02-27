@@ -444,7 +444,7 @@ object OpenSearchResponses {
   }
 
   object STACFeatureCollection {
-    def parse(json: String, toS3URL: Boolean = true, dedup: Boolean = false): FeatureCollection = {
+    def parse(json: String, toS3URL: Boolean = true, dedup: Boolean = false): (FeatureCollection, Option[URI]) = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
@@ -476,18 +476,20 @@ object OpenSearchResponses {
         }
       }
 
-      implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
-        override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
+      implicit val decodeFeatureCollection: Decoder[(FeatureCollection, Option[URI])] = new Decoder[(FeatureCollection, Option[URI])] {
+        override def apply(c: HCursor): Decoder.Result[(FeatureCollection, Option[URI])] = {
           for {
             features <- c.downField("features").as[Array[Feature]]
+            links <- c.downField("links").as[Array[Link]]
           } yield {
             val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
-            FeatureCollection(features.length, featuresFiltered)
+            val nextPageUri = links.find(_.rel contains "next").map(_.href)
+            (FeatureCollection(features.length, featuresFiltered), nextPageUri)
           }
         }
       }
 
-      decode[FeatureCollection](json)
+      decode[(FeatureCollection, Option[URI])](json)
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
     }
   }

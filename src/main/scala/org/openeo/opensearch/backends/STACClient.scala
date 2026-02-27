@@ -30,23 +30,34 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
                            bbox: ProjectedExtent,
                            attributeValues: Map[String, Any], correlationId: String,
                            processingLevel: String): Seq[Feature] = {
-    def from(page: Int): Seq[Feature] = {
-      val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
-        dateRange, bbox,
-        attributeValues, correlationId,
-        processingLevel,
-        page)
-      if (itemsPerPage <= 0) Seq() else features ++ from(page + 1)
+    def from(page: Option[URI]): Seq[Feature] = page match {
+      case Some(uri) =>
+        val getProducts = http(uri.toString)
+        val json = execute(getProducts)
+        val (featureCollection, nextPage) = STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
+        featureCollection.features ++ from(nextPage)
+      case None => Seq()
     }
 
-    from(page = 1)
+    val (FeatureCollection(_, firstPageFeatures), secondPage) = getProductsFromFirstPage(collectionId,
+      dateRange, bbox,
+      attributeValues, correlationId,
+      processingLevel)
+
+    firstPageFeatures ++ from(secondPage)
   }
 
   override protected def getProductsFromPage(collectionId: String,
                                              dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                                              bbox: ProjectedExtent,
                                              attributeValues: Map[String, Any], correlationId: String,
-                                             processingLevel: String, page: Int): FeatureCollection = {
+                                             processingLevel: String, page: Int): FeatureCollection = ???
+
+  private def getProductsFromFirstPage(collectionId: String,
+                                               dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                                               bbox: ProjectedExtent,
+                                               attributeValues: Map[String, Any], correlationId: String,
+                                               processingLevel: String): (FeatureCollection, Option[URI]) = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
     val (collectionsParam, bboxParam) =
@@ -60,7 +71,7 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
       .param("collections", collectionsParam)
       .param("limit", "100")
       .param("bbox", bboxParam)
-      .param("page", page.toString)
+    // FIXME: "next" links for earth-search.aws.element84.com/v0 are also borked so restore the original behavior
 
     val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
       // requires offsets, not time zones according to
