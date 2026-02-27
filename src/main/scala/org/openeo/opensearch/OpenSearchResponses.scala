@@ -85,6 +85,8 @@ object OpenSearchResponses {
     }
   }
 
+  case class Asset(href: URI, alternate: Option[Map[String, Map[String, String]]])
+
   /**
    * To store some simple properties that come out of the "properties" JSON node.
    * Properties that need some processing are better parsed in the apply functions.
@@ -451,7 +453,7 @@ object OpenSearchResponses {
             id <- c.downField("id").as[String]
             bbox <- c.downField("bbox").as[Array[Double]]
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
-            links <- c.downField("assets").as[Map[String, Link]]
+            assets <- c.downField("assets").as[Map[String, Asset]]
             resolution = c.downField("properties").downField("gsd").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
           } yield {
@@ -459,15 +461,17 @@ object OpenSearchResponses {
             val extent = Extent(xMin, yMin, xMax, yMax)
             val geometry = c.downField("geometry").as[Geometry].toOption
 
-            val harmonizedLinks = links.map { t =>
-              val href = t._2.href
+            val harmonizedLinks = assets.map { case (assetKey, asset) =>
+              // prefer a local file URI (the equivalent of accessedFrom: MEP and load_stac's get_best_url)
+              // TODO: clean this up
+              val href = asset.alternate.flatMap(alternates => alternates.get("local")).flatMap(alternateAsset => alternateAsset.get("href")).map(new URI(_)).filter(_.getScheme == "file").getOrElse(asset.href)
               if (toS3URL) {
                 val bucket = href.getHost.split('.')(0)
                 val s3href = URI.create("s3://" + bucket + href.getPath)
-                Link(s3href, Some(t._1))
+                Link(s3href, Some(assetKey))
               }
               else {
-                Link(href, Some(t._1))
+                Link(href, Some(assetKey))
               }
             }
             Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
