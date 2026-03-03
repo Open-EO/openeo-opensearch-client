@@ -79,6 +79,7 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
       .param("limit", "100")
       .param("bbox", bboxParam)
       .param("page", page.toString)
+      .param("filter", toCql2TextFilter(attributeValues))
 
     val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
       // requires offsets, not time zones according to
@@ -111,6 +112,7 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
       .param("collections", collectionsParam)
       .param("limit", "100")
       .param("bbox", bboxParam)
+      .param("filter", toCql2TextFilter(attributeValues))
 
     val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
       // requires offsets, not time zones according to
@@ -121,6 +123,18 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
     val json = execute(getProductsForDateRange)
 
     STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
+  }
+
+  private def toCql2TextFilter(attributeValues: Map[String, Any]): String = {
+    def formatCql2Text(property: String, value: Any): String = value match {
+      case text: String => s"$property='$text'"
+      case _ => s"$property=$value"
+    }
+
+    val cql2Texts = attributeValues
+      .map { case (property, value) => formatCql2Text(property, value) }
+
+    cql2Texts mkString " and "
   }
 
   override def getCollections(correlationId: String = ""): Seq[Feature] = {
