@@ -952,11 +952,19 @@ object OpenSearchResponses {
       }
   }
 
-  case class STACCollection(id: String)
+  case class STACCollection(id: String, spatialExtent: Extent)
 
-  case class STACCollections(collections: Array[STACCollection])
+  case class STACCollections(collections: Seq[STACCollection])
 
   object STACCollections {
+    implicit val decodeSTACCollection: Decoder[STACCollection] = (c: HCursor) => {
+      for {
+        id <- c.downField("id").as[String]
+        bbox <- c.downField("extent").downField("spatial").downField("bbox").as[Array[Array[Double]]]
+        Array(xmin, ymin, xmax, ymax) = bbox.head
+      } yield STACCollection(id, Extent(xmin, ymin, xmax, ymax))
+    }
+
     def parse(json: String): STACCollections = {
       decode[STACCollections](json)
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
