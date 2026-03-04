@@ -3,7 +3,7 @@ package org.openeo
 import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
-import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Disabled, Test}
 import org.openeo.opensearch.OpenSearchResponses
 import org.openeo.opensearch.backends.CreodiasClient
 
@@ -11,6 +11,7 @@ import java.time.ZoneOffset.UTC
 import java.time.{LocalDate, ZonedDateTime}
 import scala.collection.Map
 
+@Disabled("API is officially down")
 class CreodiasAPITest {
 
   private var httpsCacheEnabledOriginalValue = false

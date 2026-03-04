@@ -4,13 +4,14 @@ import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.{Extent, ProjectedExtent}
 import nl.jqno.equalsverifier.EqualsVerifier
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.{Disabled, Test}
 import org.openeo.HttpCache
 import org.openeo.opensearch.to_0_360_range
 import scalaj.http.HttpRequest
 
 import java.time.LocalDate
 
+@Disabled("API is officially down")
 class CreodiasClientTest {
 
   @Test

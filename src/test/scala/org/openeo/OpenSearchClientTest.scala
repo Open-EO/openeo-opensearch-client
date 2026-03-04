@@ -92,6 +92,7 @@ class OpenSearchClientTest {
 
   }
 
+  @Disabled("API is officially down")
   @Test
   def testCreoGetProducts(): Unit = {
     val openSearch = CreodiasClient()
@@ -115,6 +116,7 @@ class OpenSearchClientTest {
     assertTrue(aFeature.geometry.isDefined)
   }
 
+  @Disabled("API is officially down")
   @Test
   def testIgnoreZeroResolution(): Unit = {
     val openSearch = CreodiasClient()
@@ -135,6 +137,7 @@ class OpenSearchClientTest {
     assertEquals(Extent(179, 89, 180, 90), CreodiasClient.extentLatLngExtentToAtLeast1x1(Extent(180 - 0.001, 90 - 0.001, 180, 90)))
   }
 
+  @Disabled("API is officially down")
   @ParameterizedTest
   @MethodSource(Array("demExtents"))
   def testCreoGetProductsDEM(extent: ProjectedExtent): Unit = {
@@ -266,6 +269,7 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
+  @Disabled("API is officially down")
   @Test
   def testCreoSentinel1(): Unit = {
     val openSearch = new CreodiasClient()
@@ -288,6 +292,7 @@ class OpenSearchClientTest {
     assertEquals(features.size, unique.size)
   }
 
+  @Disabled("API is officially down")
   @ParameterizedTest
   @MethodSource(Array("level1CParams"))
   def testManifestLevelSentinel2_L1C(date: LocalDate, processingBaseline: String): Unit = {
@@ -333,6 +338,7 @@ class OpenSearchClientTest {
     }
   }
 
+  @Disabled("API is officially down")
   @ParameterizedTest
   @MethodSource(Array("level2AParams"))
   def testManifestLevelSentinel2_L2A(date: LocalDate, processingBaseline: String): Unit = {
