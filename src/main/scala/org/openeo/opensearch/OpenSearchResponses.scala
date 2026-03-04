@@ -463,8 +463,15 @@ object OpenSearchResponses {
 
             val harmonizedLinks = assets.map { case (assetKey, asset) =>
               // prefer a local file URI (the equivalent of accessedFrom: MEP and load_stac's get_best_url)
-              // TODO: clean this up
-              val href = asset.alternate.flatMap(alternates => alternates.get("local")).flatMap(alternateAsset => alternateAsset.get("href")).map(new URI(_)).filter(_.getScheme == "file").getOrElse(asset.href)
+              val alternateFileUri = for {
+                alternates <- asset.alternate
+                alternateAsset <- alternates.get("local")
+                alternateHref <- alternateAsset.get("href")
+                alternateFileUri = new URI(alternateHref) if alternateFileUri.getScheme == "file"
+              } yield alternateFileUri
+
+              val href = alternateFileUri getOrElse asset.href
+
               if (toS3URL) {
                 val bucket = href.getHost.split('.')(0)
                 val s3href = URI.create("s3://" + bucket + href.getPath)
