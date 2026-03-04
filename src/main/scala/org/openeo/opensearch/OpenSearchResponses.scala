@@ -85,6 +85,8 @@ object OpenSearchResponses {
     }
   }
 
+  case class Asset(href: URI, alternate: Option[Map[String, Map[String, String]]])
+
   /**
    * To store some simple properties that come out of the "properties" JSON node.
    * Properties that need some processing are better parsed in the apply functions.
@@ -444,14 +446,14 @@ object OpenSearchResponses {
   }
 
   object STACFeatureCollection {
-    def parse(json: String, toS3URL: Boolean = true, dedup: Boolean = false): FeatureCollection = {
+    def parse(json: String, toS3URL: Boolean = true, dedup: Boolean = false): (FeatureCollection, Option[URI]) = {
       implicit val decodeFeature: Decoder[Feature] = new Decoder[Feature] {
         override def apply(c: HCursor): Decoder.Result[Feature] = {
           for {
             id <- c.downField("id").as[String]
             bbox <- c.downField("bbox").as[Array[Double]]
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
-            links <- c.downField("assets").as[Map[String, Link]]
+            assets <- c.downField("assets").as[Map[String, Asset]]
             resolution = c.downField("properties").downField("gsd").as[Double].toOption
             properties <- c.downField("properties").as[GeneralProperties]
           } yield {
@@ -459,15 +461,24 @@ object OpenSearchResponses {
             val extent = Extent(xMin, yMin, xMax, yMax)
             val geometry = c.downField("geometry").as[Geometry].toOption
 
-            val harmonizedLinks = links.map { t =>
-              val href = t._2.href
+            val harmonizedLinks = assets.map { case (assetKey, asset) =>
+              // prefer a local file URI (the equivalent of accessedFrom: MEP and load_stac's get_best_url)
+              val alternateFileUri = for {
+                alternates <- asset.alternate
+                alternateAsset <- alternates.get("local")
+                alternateHref <- alternateAsset.get("href")
+                alternateFileUri = new URI(alternateHref) if alternateFileUri.getScheme == "file"
+              } yield alternateFileUri
+
+              val href = alternateFileUri getOrElse asset.href
+
               if (toS3URL) {
                 val bucket = href.getHost.split('.')(0)
                 val s3href = URI.create("s3://" + bucket + href.getPath)
-                Link(s3href, Some(t._1))
+                Link(s3href, Some(assetKey))
               }
               else {
-                Link(href, Some(t._1))
+                Link(href, Some(assetKey))
               }
             }
             Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
@@ -476,18 +487,20 @@ object OpenSearchResponses {
         }
       }
 
-      implicit val decodeFeatureCollection: Decoder[FeatureCollection] = new Decoder[FeatureCollection] {
-        override def apply(c: HCursor): Decoder.Result[FeatureCollection] = {
+      implicit val decodeFeatureCollection: Decoder[(FeatureCollection, Option[URI])] = new Decoder[(FeatureCollection, Option[URI])] {
+        override def apply(c: HCursor): Decoder.Result[(FeatureCollection, Option[URI])] = {
           for {
             features <- c.downField("features").as[Array[Feature]]
+            links <- c.downField("links").as[Array[Link]]
           } yield {
             val featuresFiltered = if (dedup) dedupFeatures(removePhoebusFeatures(features)) else features
-            FeatureCollection(features.length, featuresFiltered)
+            val nextPageUri = links.find(_.rel contains "next").map(_.href)
+            (FeatureCollection(features.length, featuresFiltered), nextPageUri)
           }
         }
       }
 
-      decode[FeatureCollection](json)
+      decode[(FeatureCollection, Option[URI])](json)
         .valueOr(e => throw new IllegalArgumentException(s"${e.show} while parsing '$json'", e))
     }
   }

@@ -56,7 +56,8 @@ class OpenSearchResponsesTest {
 
   def parseSTACItemsResponse(s3URL: Boolean, expectedURL: String): Unit = {
     val productsResponse = loadJsonResource("stacItemsResponse.json")
-    val features = STACFeatureCollection.parse(productsResponse, s3URL).features
+    val (featureCollection, _) = STACFeatureCollection.parse(productsResponse, s3URL)
+    val features = featureCollection.features
     assertEquals(1, features.length)
 
     assertEquals(Extent(80.15231456198393, 5.200107055229471, 81.08809406509769, 5.428209952833148), features.head.bbox)
