@@ -32,11 +32,8 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
                            processingLevel: String): Seq[Feature] = {
     if (endpoint.getHost.contains("earth-search.aws.element84.com") && endpoint.getPath == "/v0") {
       def from(page: Int): Seq[Feature] = {
-        val FeatureCollection(itemsPerPage, features) = getProductsFromPage(collectionId,
-          dateRange, bbox,
-          attributeValues, correlationId,
-          processingLevel,
-          page)
+        val FeatureCollection(itemsPerPage, features) = getProductsFromPage(
+          collectionId, dateRange, bbox, attributeValues, correlationId, processingLevel, page)
         if (itemsPerPage <= 0) Seq() else features ++ from(page + 1)
       }
 
@@ -51,10 +48,9 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
         case None => Seq()
       }
 
-      val (FeatureCollection(_, firstPageFeatures), secondPage) = getProductsFromFirstPage(collectionId,
-        dateRange, bbox,
-        attributeValues, correlationId,
-        processingLevel)
+      val (FeatureCollection(_, firstPageFeatures), secondPage) = getProductsFromFirstPage(
+        collectionId, dateRange, bbox, attributeValues
+      )
 
       firstPageFeatures ++ from(secondPage)
     }
@@ -67,46 +63,33 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
                                              processingLevel: String, page: Int): FeatureCollection = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
-    val (collectionsParam, bboxParam) =
-      if (endpoint.getHost.contains("earth-search.aws.element84.com") && endpoint.getPath == "/v0")
-        (s"""["$collectionId"]""", Array(xMin, yMin, xMax, yMax).mkString("[", ",", "]"))
-      else
-        (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
+    val collectionsParam = s"""["$collectionId"]"""
+    val bboxParam = Array(xMin, yMin, xMax, yMax).mkString("[", ",", "]")
 
-    // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/item-search
-    val getProducts = http(URI.create(s"$endpoint/search").normalize().toString)
-      .param("collections", collectionsParam)
-      .param("limit", "100")
-      .param("bbox", bboxParam)
-      .param("page", page.toString)
-      .param("filter", toCql2TextFilter(attributeValues))
+    val (featureCollection, _) = getProducts(
+      collectionsParam, dateRange, bboxParam, attributeValues, page = Some(page)
+    )
 
-    val getProductsForDateRange = dateRange.foldLeft(getProducts) { case (req, (fromDate, toDate)) =>
-      // requires offsets, not time zones according to
-      // https://github.com/radiantearth/stac-api-spec/tree/main/item-search#query-parameter-table
-      req.param("datetime", s"${fromDate format ISO_OFFSET_DATE_TIME}/${toDate format ISO_OFFSET_DATE_TIME}")
-    }
-
-    val json = execute(getProductsForDateRange)
-
-    val (featureCollection, _) = STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
     featureCollection
   }
 
-  // TODO: reduce code duplication with getProductsFromPage
   private def getProductsFromFirstPage(collectionId: String,
                                                dateRange: Option[(ZonedDateTime, ZonedDateTime)],
                                                bbox: ProjectedExtent,
-                                               attributeValues: Map[String, Any], correlationId: String,
-                                               processingLevel: String): (FeatureCollection, Option[URI]) = {
+                                               attributeValues: Map[String, Any]): (FeatureCollection, Option[URI]) = {
     val Extent(xMin, yMin, xMax, yMax) = bbox.reproject(LatLng)
 
-    val (collectionsParam, bboxParam) =
-      if (endpoint.getHost.contains("earth-search.aws.element84.com") && endpoint.getPath == "/v0")
-        (s"""["$collectionId"]""", Array(xMin, yMin, xMax, yMax).mkString("[", ",", "]"))
-      else
-        (collectionId, Array(xMin, yMin, xMax, yMax) mkString ",")
+    val collectionsParam = collectionId
+    val bboxParam = Array(xMin, yMin, xMax, yMax) mkString ","
 
+    getProducts(collectionsParam, dateRange, bboxParam, attributeValues, page = None)
+  }
+
+  private def getProducts(collectionsParam: String,
+                          dateRange: Option[(ZonedDateTime, ZonedDateTime)],
+                          bboxParam: String,
+                          attributeValues: Map[String, Any],
+                          page: Option[Int]): (FeatureCollection, Option[URI]) = {
     // fixed path according to https://github.com/radiantearth/stac-api-spec/tree/main/item-search
     val getProducts = http(URI.create(s"$endpoint/search").normalize().toString)
       .param("collections", collectionsParam)
@@ -120,7 +103,11 @@ class STACClient(private val endpoint: URL = new URI("https://earth-search.aws.e
       req.param("datetime", s"${fromDate format ISO_OFFSET_DATE_TIME}/${toDate format ISO_OFFSET_DATE_TIME}")
     }
 
-    val json = execute(getProductsForDateRange)
+    val getProductsForPage = page.foldLeft(getProductsForDateRange) { case (req, page) =>
+      req.param("page", page.toString)
+    }
+
+    val json = execute(getProductsForPage)
 
     STACFeatureCollection.parse(json, toS3URL = s3URLS, dedup = true)
   }
