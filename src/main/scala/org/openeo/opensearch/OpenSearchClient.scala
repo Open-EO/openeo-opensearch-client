@@ -1,6 +1,7 @@
 package org.openeo.opensearch
 
 import geotrellis.vector.ProjectedExtent
+import org.apache.commons.lang3.StringUtils
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
@@ -153,25 +154,23 @@ abstract class OpenSearchClient {
       .asString
 
     logger.info(s"$url returned ${response.code}")
-    if(response.isError) {
-      if(response.contentType.contains("application/json") || response.contentType.contains("application/geo+json;charset=UTF-8")) {
+    if (response.isError) {
+      if (response.contentType contains "json") {
         io.circe.parser.parse(response.body) match {
-          case Left(failure) => throw new IOException(s"Exception while evaluating catalog request $url: $failure")
-          case Right(json) => throw new IOException(s"Exception while evaluating catalog request $url: ${json.findAllByKey("exceptionText").mkString(";")}${json.findAllByKey("ErrorMessage").mkString(";")} ")
+          case Left(failure) => throw new IOException(s"Could not parse ${response.code} response to catalog request $url: $failure; body was: ${StringUtils.abbreviate(response.body, 1000)}", failure)
+          case Right(json) => throw new IOException(s"Catalog request $url returned ${response.code} response; body was: ${StringUtils.abbreviate(json.noSpaces, 1000)}")
         }
-
-        throw new IOException(s"$url returned an empty body")
-      }else{
-        throw new IOException(s"Exception while evaluating catalog request $url: ${response.body}")
-
+      } else {
+        throw new IOException(s"Catalog request $url returned ${response.code} response; body was: ${StringUtils.abbreviate(response.body, 1000)}")
       }
-    }else{
-      val json = response.body // note: the HttpStatusException's message doesn't include the response body
+    } else {
+      val body = response.body // note: the HttpStatusException's message doesn't include the response body
 
-      if (json.trim.isEmpty) {
-        throw new IOException(s"$url returned an empty body")
+      if (body.trim.isEmpty) {
+        throw new IOException(s"Catalog request $url returned ${response.code}; body was empty")
       }
-      json
+
+      body
     }
   }
 
