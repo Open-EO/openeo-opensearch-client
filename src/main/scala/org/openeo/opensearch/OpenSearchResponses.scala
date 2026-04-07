@@ -5,6 +5,7 @@ import cats.syntax.either._
 import cats.syntax.show._
 import geotrellis.proj4.util.UTM
 import geotrellis.proj4.{CRS, LatLng}
+import geotrellis.raster.CellType
 import io.circe._
 import io.circe.generic.auto._
 import geotrellis.vector._
@@ -102,6 +103,7 @@ object OpenSearchResponses {
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URI] = None,
+                                    nodata: Option[Number] = None, datatype: Option[CellType] = None, scale: Double = 1, offset: Double = 0,
                                    ) {
 
     def withId(id: String): FeatureBuilder = copy(id = id)
@@ -157,9 +159,16 @@ object OpenSearchResponses {
 
     def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URI(selfUrl)))
 
+    def withNodata(nodata: Number): FeatureBuilder = copy(nodata = Some(nodata))
+
+    def withDatatype(datatype: String): FeatureBuilder = copy(datatype = Some(CellType.fromName(datatype)))
+
+    def withScaleAndOffset(scale: Double, offset: Double): FeatureBuilder = copy(scale = scale, offset = offset)
+
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
       generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl,
+      nodata = nodata, datatype = datatype, scale = scale, offset = offset,
     )
   }
 
@@ -168,6 +177,7 @@ object OpenSearchResponses {
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
                      cloudCover: Double = 0, selfUrl: Option[URI] = None,
+                     nodata: Option[Number] = None, datatype: Option[CellType] = None, scale: Double = 1, offset: Double = 0,
                     ) {
     crs = crs.orElse {
       for {
