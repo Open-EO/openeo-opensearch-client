@@ -163,7 +163,9 @@ object OpenSearchResponses {
 
     def withDatatype(datatype: String): FeatureBuilder = copy(datatype = Some(CellType.fromName(datatype)))
 
-    def withScaleAndOffset(scale: Double, offset: Double): FeatureBuilder = copy(scale = scale, offset = offset)
+    def withScale(scale:Double): FeatureBuilder = copy(scale = scale)
+
+    def withOffset(offset: Double): FeatureBuilder = copy(offset = offset)
 
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
