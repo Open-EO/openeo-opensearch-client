@@ -1,6 +1,7 @@
 package org.openeo
 
 import geotrellis.proj4.{CRS, LatLng}
+import geotrellis.raster.IntConstantNoDataCellType
 import geotrellis.vector.Extent
 import org.junit.Assert._
 import org.junit.Test
@@ -23,6 +24,10 @@ class OpenSearchResponsesTest {
       .addLink("url", "title", 0.0, java.util.Arrays.asList("B01", "B02"))
       .withCRS("EPSG:32631")
       .withGeometryFromWkt("POLYGON ((0 0, 0 10, 10 10, 10 0, 0 0))")
+      .withNodata(10)
+      .withDatatype("int32")
+      .withScale(1.6)
+      .withOffset(5)
       .build
 
     assertEquals("id", f.id)
@@ -34,6 +39,10 @@ class OpenSearchResponsesTest {
     assertEquals(0.0, f.links(0).pixelValueOffset.get, 0.0)
     assertEquals("EPSG:32631", f.crs.get.toString())
     assertEquals(Some(Extent(0, 0, 10, 10).toPolygon()), f.geometry)
+    assertEquals(10,f.nodata.get)
+    assertEquals(IntConstantNoDataCellType,f.datatype.get)
+    assertEquals(1.6, f.scale, 0)
+    assertEquals(5.0, f.offset, 0)
   }
 
   @Test
