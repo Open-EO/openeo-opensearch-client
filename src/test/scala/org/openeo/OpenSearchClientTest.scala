@@ -448,6 +448,7 @@ class OpenSearchClientTest {
     features.find(_.generalProperties.processingBaseline.get == processingBaseline.toDouble).get
   }
 
+  @Disabled("API is down")
   @Test
   def parseCreodiasCorruptPhoebus(): Unit = {
     // PHOEBUS-core products where reprocessed. Keeping test in case they come back.
@@ -467,6 +468,7 @@ class OpenSearchClientTest {
     assertEquals(2, features.length)
   }
 
+  @Disabled("API is officially down")
   @Test
   def nonNodedIntersection(): Unit = {
     val url = "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel2/search.json?box=-3.4850284734588555%2C42.557489967174575%2C-3.204481304802883%2C42.7667871856319&sortParam=startDate&sortOrder=ascending&page=2&maxRecords=100&status=ONLINE&dataset=ESA-DATASET&productType=L2A&cloudCover=%5B0%2C95%5D&startDate=2021-05-09T00%3A00%3A00Z&completionDate=2021-10-11T23%3A59%3A59.999999999Z"
@@ -477,6 +479,7 @@ class OpenSearchClientTest {
     assertEquals(7, features.length)
   }
 
+  @Disabled("API is down")
   @Test
   def nonNodedIntersection2021(): Unit = {
     HttpCache.enabled = true
@@ -488,6 +491,7 @@ class OpenSearchClientTest {
     assertEquals(2, features.length)
   }
 
+  @Disabled("API is down")
   @Test
   def northenLatitudes(): Unit = {
     HttpCache.enabled = true
