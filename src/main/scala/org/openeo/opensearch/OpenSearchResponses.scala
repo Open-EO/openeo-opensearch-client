@@ -78,11 +78,16 @@ object OpenSearchResponses {
     }
   }
 
+  abstract sealed class NumberTypes {def value():Number}
+  case class IntType(i: Int) extends NumberTypes {
+    override def value(): Number = i}
+  case class DoubleType(d: Double) extends NumberTypes {
+    override def value(): Number = d}
 
-  case class Link(href: URI, title: Option[String], rel: Option[String] = None, bandNames: Option[Seq[String]] = None, pixelValueScale: Option[Double] = Some(1.0), pixelValueOffset: Option[Double] = Some(0)) {
+  case class Link(href: URI, title: Option[String], rel: Option[String] = None, bandNames: Option[Seq[String]] = None, pixelValueScale: Option[Double] = Some(1.0), pixelValueOffset: Option[Double] = Some(0), datatype: Option[CellType] = None, nodata: Option[NumberTypes] = None) {
 
     override def toString: String = {
-      s"Link(href=$href, title=${title.getOrElse("")}, ${pixelValueScale.map( po=> s"pixelValueOffset= ${po},")}, ${pixelValueOffset.map( po=> s"pixelValueOffset= ${po},")} bandNames=${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
+      s"Link(href=$href, title= ${title.getOrElse("")}, ${pixelValueScale.map(pv=> s"pixelValueScale= $pv, ")} ${pixelValueOffset.map(po=> s"pixelValueOffset= $po, ")}${datatype.map(dt=> s"datatype= $dt," )}${nodata.map(nd=> s"nodata= $nd," )}bandNames= ${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
     }
   }
 
@@ -103,7 +108,6 @@ object OpenSearchResponses {
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URI] = None,
-                                    nodata: Option[Number] = None, datatype: Option[CellType] = None, scale: Double = 1, offset: Double = 0,
                                    ) {
 
     def withId(id: String): FeatureBuilder = copy(id = id)
@@ -114,6 +118,26 @@ object OpenSearchResponses {
 
     def withResolution(resolution: Double): FeatureBuilder = copy(resolution = Some(resolution))
 
+    def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String],
+                datatype: String, nodata: Int): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)), nodata = Some(IntType(nodata)))
+      if (links != null) {
+        copy(links = links :+ link)
+      } else {
+        copy(links = Array(link))
+      }
+    }
+
+    def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String],
+                datatype: String, nodata: Double): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)), nodata = Some(DoubleType(nodata)))
+      if (links != null) {
+        copy(links = links :+ link)
+      } else {
+        copy(links = Array(link))
+      }
+    }
+
     def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
       val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset))
       if (links != null) {
@@ -121,7 +145,6 @@ object OpenSearchResponses {
       } else {
         copy(links = Array(link))
       }
-
     }
 
     def addLink(href: String, title: String, pixelValueOffset: Double, bandNames: java.util.List[String]): FeatureBuilder = {
@@ -159,18 +182,9 @@ object OpenSearchResponses {
 
     def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URI(selfUrl)))
 
-    def withNodata(nodata: Number): FeatureBuilder = copy(nodata = Some(nodata))
-
-    def withDatatype(datatype: String): FeatureBuilder = copy(datatype = Some(CellType.fromName(datatype)))
-
-    def withScale(scale:Double): FeatureBuilder = copy(scale = scale)
-
-    def withOffset(offset: Double): FeatureBuilder = copy(offset = offset)
-
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
       generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl,
-      nodata = nodata, datatype = datatype, scale = scale, offset = offset,
     )
   }
 
@@ -179,7 +193,6 @@ object OpenSearchResponses {
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
                      cloudCover: Double = 0, selfUrl: Option[URI] = None,
-                     nodata: Option[Number] = None, datatype: Option[CellType] = None, scale: Double = 1, offset: Double = 0,
                     ) {
     crs = crs.orElse {
       for {
