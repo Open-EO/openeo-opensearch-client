@@ -91,7 +91,9 @@ object OpenSearchResponses {
     }
   }
 
-  case class Asset(href: URI, alternate: Option[Map[String, Map[String, String]]])
+  case class Asset(href: URI, alternate: Option[Map[String, Alternate]])
+
+  case class Alternate(href: URI)
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -491,8 +493,7 @@ object OpenSearchResponses {
               val alternateFileUri = for {
                 alternates <- asset.alternate
                 alternateAsset <- alternates.get("local")
-                alternateHref <- alternateAsset.get("href")
-                alternateFileUri = new URI(alternateHref) if alternateFileUri.getScheme == "file"
+                alternateFileUri = alternateAsset.href if alternateFileUri.getScheme == "file"
               } yield alternateFileUri
 
               val href = alternateFileUri getOrElse asset.href
@@ -939,7 +940,7 @@ object OpenSearchResponses {
               } else if (f.id.contains("COP-DEM_GLO")) {
                 val all_links = getDEMPathFromInspire(f.id)
                 all_links.toArray
-              } else if (f.id.startsWith("/eodata/Landsat-8/OLI_TIRS") || f.id.startsWith("/eodata/Landsat-8-ESA/OLI_TIRS")) {
+              } else if (f.id.startsWith("/eodata/Landsat-8/OLI_TIRS") || f.id.startsWith("/eodata/Landsat-8-ESA/OLI_TIRS") || f.id.startsWith("/eodata/Landsat-9" )  ) {
                 getLandsat8FilePaths(path = f.id).toArray
               } else if (f.id.startsWith("/eodata/Sentinel-1-RTC")) {
                 getSentinel1RTCFilePaths(path = f.id).toArray
