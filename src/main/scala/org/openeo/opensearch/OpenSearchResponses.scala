@@ -110,6 +110,7 @@ object OpenSearchResponses {
   case class FeatureBuilder private(id: String = "", bbox: Extent = null, nominalDate: ZonedDateTime = null, links: Array[Link] = Array(), resolution: Option[Double] = None,
                                     tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                                     generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None, selfUrl: Option[URI] = None,
+                                    collectionId: String = "",
                                    ) {
 
     def withId(id: String): FeatureBuilder = copy(id = id)
@@ -183,6 +184,8 @@ object OpenSearchResponses {
     def withRasterExtent(minX: Double, minY: Double, maxX: Double, maxY: Double): FeatureBuilder = copy(rasterExtent = Some(Extent(minX, minY, maxX, maxY)))
 
     def withSelfUrl(selfUrl: String): FeatureBuilder = copy(selfUrl = Some(new URI(selfUrl)))
+
+    def withCollectionId(collectionId: String): FeatureBuilder = copy(collectionId = collectionId)
 
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
