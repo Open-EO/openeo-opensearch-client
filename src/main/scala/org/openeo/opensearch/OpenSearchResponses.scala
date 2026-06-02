@@ -190,6 +190,7 @@ object OpenSearchResponses {
     def build: Feature = Feature(id = id, bbox = bbox, nominalDate = nominalDate,
       links = links, resolution = resolution, tileID = tileID, geometry = geometry, crs = crs,
       generalProperties = generalProperties, rasterExtent = rasterExtent, selfUrl = selfUrl,
+      collectionId = collectionId,
     )
   }
 
@@ -197,7 +198,7 @@ object OpenSearchResponses {
                      tileID: Option[String] = None, geometry: Option[Geometry] = None, var crs: Option[CRS] = None,
                      generalProperties: GeneralProperties = new GeneralProperties(), var rasterExtent: Option[Extent] = None,
                      deduplicationOrderValue: Option[String] = None,
-                     cloudCover: Double = 0, selfUrl: Option[URI] = None,
+                     cloudCover: Double = 0, selfUrl: Option[URI] = None, collectionId: String = "",
                     ) {
     crs = crs.orElse {
       for {
@@ -482,6 +483,7 @@ object OpenSearchResponses {
           for {
             id <- c.downField("id").as[String]
             bbox <- c.downField("bbox").as[Array[Double]]
+            collectionId = c.downField("collection").as[String].toOption.getOrElse("")
             nominalDate <- c.downField("properties").downField("datetime").as[ZonedDateTime]
             assets <- c.downField("assets").as[Map[String, Asset]]
             resolution = c.downField("properties").downField("gsd").as[Double].toOption
@@ -511,7 +513,7 @@ object OpenSearchResponses {
               }
             }
             Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
-              generalProperties = properties)
+              generalProperties = properties, collectionId = collectionId)
           }
         }
       }
