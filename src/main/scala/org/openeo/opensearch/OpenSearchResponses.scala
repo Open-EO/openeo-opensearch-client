@@ -78,13 +78,7 @@ object OpenSearchResponses {
     }
   }
 
-  abstract sealed class NumberTypes {def value():Number}
-  case class IntType(i: Int) extends NumberTypes {
-    override def value(): Number = i}
-  case class DoubleType(d: Double) extends NumberTypes {
-    override def value(): Number = d}
-
-  case class Link(href: URI, title: Option[String], rel: Option[String] = None, bandNames: Option[Seq[String]] = None, pixelValueScale: Option[Double] = Some(1.0), pixelValueOffset: Option[Double] = Some(0), datatype: Option[CellType] = None, nodata: Option[NumberTypes] = None) {
+  case class Link(href: URI, title: Option[String], rel: Option[String] = None, bandNames: Option[Seq[String]] = None, pixelValueScale: Option[Double] = Some(1.0), pixelValueOffset: Option[Double] = Some(0), datatype: Option[CellType] = None, nodata: Option[Double] = None) {
 
     override def toString: String = {
       s"Link(href=$href, title= ${title.getOrElse("")}, ${pixelValueScale.map(pv=> s"pixelValueScale= $pv, ")} ${pixelValueOffset.map(po=> s"pixelValueOffset= $po, ")}${datatype.map(dt=> s"datatype= $dt," )}${nodata.map(nd=> s"nodata= $nd," )}bandNames= ${bandNames.getOrElse(Seq()).mkString("[", ", ", "]")}, rel=$rel)"
@@ -122,8 +116,8 @@ object OpenSearchResponses {
     def withResolution(resolution: Double): FeatureBuilder = copy(resolution = Some(resolution))
 
     def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String],
-                datatype: String, nodata: Int): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)), nodata = Some(IntType(nodata)))
+                datatype: String, noData: Double): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)), nodata = Some(noData))
       if (links != null) {
         copy(links = links :+ link)
       } else {
@@ -132,8 +126,8 @@ object OpenSearchResponses {
     }
 
     def addLink(href: String, title: String, pixelValueScale:Double, pixelValueOffset: Double, bandNames: java.util.List[String],
-                datatype: String, nodata: Double): FeatureBuilder = {
-      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)), nodata = Some(DoubleType(nodata)))
+                datatype: String): FeatureBuilder = {
+      val link = Link(URI.create(href), Option(title), bandNames = Option(bandNames.asScala.toSeq), pixelValueScale = Option(pixelValueScale), pixelValueOffset = Option(pixelValueOffset), datatype = Some(CellType.fromName(datatype)))
       if (links != null) {
         copy(links = links :+ link)
       } else {

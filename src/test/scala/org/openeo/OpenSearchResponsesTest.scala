@@ -40,14 +40,21 @@ class OpenSearchResponsesTest {
   @Test
   def testFeatureBuilderLinks(): Unit = {
     val f = OpenSearchResponses.FeatureBuilder()
-      .addLink("url", "title", pixelValueScale = 1.0, pixelValueOffset = 0.0, datatype = "uint16", nodata = 255, bandNames = java.util.Arrays.asList("B01", "B02"))
+      .addLink("url1", "title1", pixelValueScale = 1.0, pixelValueOffset = 0.0, datatype = "uint16", noData = 255, bandNames = java.util.Arrays.asList("B01", "B02"))
+      .addLink("url2", "title2", pixelValueScale = 1.0, pixelValueOffset = 0.0, datatype = "uint16", bandNames = java.util.Arrays.asList("B01", "B02"))
       .build
 
-    assertEquals(1, f.links.length)
-    assertEquals("url", f.links(0).href.toString)
-    assertEquals("title", f.links(0).title.get)
+    assertEquals(2, f.links.length)
+    assertEquals("url1", f.links(0).href.toString)
+    assertEquals("title1", f.links(0).title.get)
     assertEquals(1.0, f.links(0).pixelValueScale.get, 0)
-    assertEquals(255, f.links(0).nodata.get.value())
+    assertEquals(255, f.links(0).nodata.get, 0)
+    assertEquals(UShortConstantNoDataCellType, f.links(0).datatype.get)
+
+    assertEquals("url2", f.links(1).href.toString)
+    assertEquals("title2", f.links(1).title.get)
+    assertEquals(1.0, f.links(1).pixelValueScale.get, 0)
+    assertEquals(None, f.links(1).nodata)
     assertEquals(UShortConstantNoDataCellType, f.links(0).datatype.get)
   }
 
