@@ -85,9 +85,9 @@ object OpenSearchResponses {
     }
   }
 
-  case class Asset(href: URI, alternate: Option[Map[String, Alternate]])
-
+  case class Asset(href: URI, alternate: Option[Map[String, Alternate]], bands: Option[Seq[Band]])
   case class Alternate(href: URI)
+  case class Band(name: Option[String])
 
   /**
    * To store some simple properties that come out of the "properties" JSON node.
@@ -496,14 +496,15 @@ object OpenSearchResponses {
               } yield alternateFileUri
 
               val href = alternateFileUri getOrElse asset.href
+              val bandNames = asset.bands.map(bands => bands.flatMap(_.name))
 
               if (toS3URL) {
                 val bucket = href.getHost.split('.')(0)
                 val s3href = URI.create("s3://" + bucket + href.getPath)
-                Link(s3href, Some(assetKey))
+                Link(s3href, Some(assetKey), bandNames = bandNames)
               }
               else {
-                Link(href, Some(assetKey))
+                Link(href, Some(assetKey), bandNames = bandNames)
               }
             }
             Feature(id, extent, nominalDate, harmonizedLinks.toArray, resolution, None, geometry = geometry,
