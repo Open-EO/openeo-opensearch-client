@@ -9,6 +9,6 @@ javaPipeline {
   maven_version = '3.9.11'
   create_git_tag_job = true
   wipeout_workspace = true
-  dev_repository = 'libs-snapshot-public'
-  prod_repository = 'libs-release-public'
+  dev_repository = 'openeo-maven-snapshot-local'
+  prod_repository = 'openeo-maven-release-local'
 }
