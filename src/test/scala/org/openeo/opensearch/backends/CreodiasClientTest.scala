@@ -6,8 +6,7 @@ import nl.jqno.equalsverifier.EqualsVerifier
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.{Disabled, Test}
 import org.openeo.HttpCache
-import org.openeo.opensearch.to_0_360_range
-import scalaj.http.HttpRequest
+import org.openeo.opensearch.{HttpRequest, to_0_360_range}
 
 import java.time.LocalDate
 
@@ -56,7 +55,7 @@ class CreodiasClientTest {
   private def cachingCreoClient = {
     new CreodiasClient() {
       override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.urlBuilder(request))
+        HttpCache.httpsCache.readString(request.url)
       }
     }
   }

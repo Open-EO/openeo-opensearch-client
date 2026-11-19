@@ -2,9 +2,8 @@ package org.openeo.opensearch.backends
 
 import geotrellis.proj4.LatLng
 import geotrellis.vector.{Extent, ProjectedExtent}
-import org.openeo.opensearch.OpenSearchClient
+import org.openeo.opensearch.{HttpStatusException, OpenSearchClient}
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection, dedupFeatures}
-import scalaj.http.{HttpOptions, HttpStatusException}
 
 import java.net.{URI, URL, URLEncoder}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
@@ -170,7 +169,6 @@ class OscarsClient(val endpoint: URL, val isUTM: Boolean = false, val deduplicat
 
   private def getCollectionsFromPage(correlationId: String = "", startIndex: Int): Seq[Feature] = {
     val getCollections = http(s"$endpoint/collections")
-      .option(HttpOptions.followRedirects(true))
       .param("count", "200")
       .param("startIndex", startIndex.toString)
       .param("clientId", clientId(correlationId))

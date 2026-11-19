@@ -9,8 +9,7 @@ import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
 import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
-import org.openeo.opensearch.{OpenSearchClient, ZonedDateTimeOrdering}
-import scalaj.http.HttpRequest
+import org.openeo.opensearch.{HttpRequest, OpenSearchClient, ZonedDateTimeOrdering}
 
 import java.net.URI
 import java.time.ZoneOffset.UTC
@@ -251,7 +250,7 @@ class OpenSearchClientTest {
 
     val openSearch = new OscarsClient(new URI("https://services.terrascope.be/catalogue").toURL, false){
       override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.urlBuilder(request))
+        HttpCache.httpsCache.readString(request.url)
       }
     }
 
@@ -385,7 +384,7 @@ class OpenSearchClientTest {
   private def cachingCreoClient = {
     new CreodiasClient() {
       override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.urlBuilder(request))
+        HttpCache.httpsCache.readString(request.url)
       }
     }
   }
