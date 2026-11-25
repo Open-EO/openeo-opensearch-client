@@ -7,9 +7,9 @@ import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
 
 import java.io.IOException
-import java.net.{URI, URL}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest => JHttpRequest}
+import java.net.{URI, URL}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.ZoneOffset.UTC
 import java.time.{Duration, LocalDate, OffsetTime, ZonedDateTime}
@@ -78,7 +78,6 @@ object OpenSearchClient {
             allowParallelQuery: Boolean, oneOrbitPerDay: Boolean): OpenSearchClient = {
     clientType match {
       case "cgls_oscars" => new CGLSOscarsClient(new URL(endpoint), bands)
-      case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "globspatialonly" => new GeotiffNoDateSearchClient(endpoint, bands)
       case _ => apply(new URL(endpoint), isUTM, clientType, allowParallelQuery, oneOrbitPerDay)
