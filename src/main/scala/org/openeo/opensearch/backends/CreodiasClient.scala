@@ -5,7 +5,6 @@ import geotrellis.vector.{Extent, ProjectedExtent}
 import org.openeo.opensearch.OpenSearchResponses.{CreoCollections, CreoFeatureCollection, Feature, FeatureCollection}
 import org.openeo.opensearch.{OpenSearchClient, safeReproject, to_0_360_range}
 import org.slf4j.LoggerFactory
-import scalaj.http.HttpOptions
 
 import java.net.{URI, URL}
 import java.time.ZonedDateTime
@@ -227,7 +226,6 @@ class CreodiasClient(val endpoint: URL = new URI("https://catalogue.dataspace.co
 
   override def getCollections(correlationId: String): Seq[Feature] = {
     val getCollections = http(s"$endpoint/collections.json")
-      .option(HttpOptions.followRedirects(true))
 
     val json = execute(getCollections)
     CreoCollections.parse(json).collections.map(c => Feature(c.name, null, null, null, null,None))

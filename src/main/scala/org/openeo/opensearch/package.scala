@@ -3,15 +3,17 @@ package org.openeo
 import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector._
 import org.slf4j.LoggerFactory
-import scalaj.http.HttpStatusException
 import software.amazon.awssdk.core.exception.SdkClientException
 
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.time.ZonedDateTime
+import java.net.http.HttpTimeoutException
+import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import scala.annotation.tailrec
+import scala.util.{Random, Try}
 
 package object opensearch {
   private val logger = LoggerFactory.getLogger("opensearch")
@@ -21,12 +23,34 @@ package object opensearch {
     override def compare(x: ZonedDateTime, y: ZonedDateTime): Int = x compareTo y
   }
 
+  /** Non-success HTTP response. `retryAfter` is the server-requested wait (Retry-After header), if any. */
+  class HttpStatusException(val code: Int, message: String, val retryAfter: Option[Duration] = None,
+                            cause: Throwable = null) extends IOException(message, cause)
+
+  /** Parses a Retry-After header value: either delay-seconds or an HTTP-date. */
+  def parseRetryAfter(value: String, now: Instant = Instant.now()): Option[Duration] = {
+    val trimmed = value.trim
+    val duration =
+      if (trimmed.nonEmpty && trimmed.forall(_.isDigit)) Try(Duration.ofSeconds(trimmed.toLong)).toOption
+      else Try(Duration.between(now, ZonedDateTime.parse(trimmed, RFC_1123_DATE_TIME).toInstant)).toOption
+    duration.map(d => if (d.isNegative) Duration.ZERO else d)
+  }
+
+  private val maxRetryAfter = Duration.ofMinutes(2)
+
   def withRetries[R](action: => R): R = {
     @tailrec
     def attempt(retries: Int, delay: (Long, TimeUnit))(action: => R): R = {
       val (amount, timeUnit) = delay
+      var sleepMillis = timeUnit.toMillis(amount)
 
       def retryable(e: Exception): Boolean = retries > 0 && (e match {
+        case h: HttpStatusException if h.code == 429 =>
+          // honour Retry-After (capped), otherwise fall back to the exponential backoff; jitter avoids synchronized retries
+          val base = h.retryAfter.map(d => math.min(d.toMillis, maxRetryAfter.toMillis)).getOrElse(sleepMillis)
+          sleepMillis = base + Random.nextInt(1000)
+          logger.warn(s"rate limited (429): retrying in $sleepMillis ms")
+          true
         case h: HttpStatusException if h.code >= 500 => true
         case e: IOException if e.getMessage.endsWith("returned an empty body") =>
           logger.warn(s"encountered empty body: retrying within $amount $timeUnit", e)
@@ -35,7 +59,7 @@ package object opensearch {
           // Mostly error code 500, but keeping it open just in case.
           logger.warn(s"Errors for this API can be retried: retrying within $amount $timeUnit", e)
           true
-        case _: SocketTimeoutException =>
+        case _: SocketTimeoutException | _: HttpTimeoutException =>
           logger.warn(s"socket timeout exception: retrying within $amount $timeUnit")
           true
         case e: SdkClientException =>
@@ -50,7 +74,7 @@ package object opensearch {
         case e: Exception if retryable(e) => ()
       }
 
-      timeUnit.sleep(amount)
+      Thread.sleep(sleepMillis)
       attempt(retries - 1, (amount * 2, timeUnit)) {
         action
       }

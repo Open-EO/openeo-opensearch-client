@@ -5,15 +5,18 @@ import org.apache.commons.lang3.StringUtils
 import org.openeo.opensearch.OpenSearchResponses.{Feature, FeatureCollection}
 import org.openeo.opensearch.backends._
 import org.slf4j.LoggerFactory
-import scalaj.http.{Http, HttpOptions, HttpRequest}
 
 import java.io.IOException
-import java.net.URL
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.{HttpClient, HttpRequest => JHttpRequest}
+import java.net.{URI, URL}
+import java.nio.charset.StandardCharsets.UTF_8
 import java.time.ZoneOffset.UTC
-import java.time.{LocalDate, OffsetTime, ZonedDateTime}
+import java.time.{Duration, LocalDate, OffsetTime, ZonedDateTime}
 import java.util
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.Map
+import scala.jdk.OptionConverters._
 
 /**
  *
@@ -23,6 +26,11 @@ import scala.collection.Map
 object OpenSearchClient {
   private val logger = LoggerFactory.getLogger(classOf[OpenSearchClient])
   private val requestCounter = new AtomicLong
+
+  private val httpClient: HttpClient = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NORMAL)
+    .connectTimeout(Duration.ofSeconds(10))
+    .build()
 
   def apply(endpoint: URL, isUTM: Boolean = false, clientType: String = "", allowParallelQuery: Boolean = false, oneOrbitPerDay: Boolean = false): OpenSearchClient = {
     if (clientType != "") {
@@ -70,7 +78,6 @@ object OpenSearchClient {
             allowParallelQuery: Boolean, oneOrbitPerDay: Boolean): OpenSearchClient = {
     clientType match {
       case "cgls_oscars" => new CGLSOscarsClient(new URL(endpoint), bands)
-      case "cgls" => new GlobalNetCDFSearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "agera5" => new Agera5SearchClient(endpoint, bands, dateRegex.r.unanchored)
       case "globspatialonly" => new GeotiffNoDateSearchClient(endpoint, bands)
       case _ => apply(new URL(endpoint), isUTM, clientType, allowParallelQuery, oneOrbitPerDay)
@@ -133,10 +140,7 @@ abstract class OpenSearchClient {
 
   def getCollections(correlationId: String = ""): Seq[Feature]
 
-  protected def http(url: String): HttpRequest =
-    Http(url)
-      .option(HttpOptions.followRedirects(true))
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 40000)
+  protected def http(url: String): HttpRequest = HttpRequest(url)
 
   protected def clientId(correlationId: String): String = {
     if (correlationId.isEmpty) correlationId
@@ -147,27 +151,41 @@ abstract class OpenSearchClient {
   }
 
   protected def execute(request: HttpRequest): String = withRetries {
-    val url = request.urlBuilder(request)
+    val url = request.url
 
-    val response = request
-      .timeout(connTimeoutMs = 10000, readTimeoutMs = 5 * 60 * 1000) // 5min, as catalogue API can be realy slow
-      .asString
+    val httpRequest = JHttpRequest.newBuilder(URI.create(url))
+      .timeout(Duration.ofMinutes(5)) // as catalogue API can be really slow
+      .GET()
+      .build()
 
-    logger.info(s"$url returned ${response.code}")
-    if (response.isError) {
-      if (response.contentType contains "json") {
-        io.circe.parser.parse(response.body) match {
-          case Left(failure) => throw new IOException(s"Could not parse ${response.code} response to catalog request $url: $failure; body was: ${StringUtils.abbreviate(response.body, 1000)}", failure)
-          case Right(json) => throw new IOException(s"Catalog request $url returned ${response.code} response; body was: ${StringUtils.abbreviate(json.noSpaces, 1000)}")
+    val response = try httpClient.send(httpRequest, BodyHandlers.ofString(UTF_8))
+    catch {
+      case e: InterruptedException =>
+        Thread.currentThread().interrupt()
+        throw new IOException(s"Interrupted while requesting $url", e)
+    }
+
+    val code = response.statusCode()
+    logger.info(s"$url returned $code")
+    if (code >= 400) {
+      val retryAfter =
+        if (code == 429) response.headers().firstValue("Retry-After").toScala.flatMap(parseRetryAfter(_))
+        else None
+      val contentType = response.headers().firstValue("Content-Type").orElse("")
+
+      if (contentType contains "json") {
+        io.circe.parser.parse(response.body()) match {
+          case Left(failure) => throw new HttpStatusException(code, s"Could not parse $code response to catalog request $url: $failure; body was: ${StringUtils.abbreviate(response.body(), 1000)}", retryAfter, failure)
+          case Right(json) => throw new HttpStatusException(code, s"Catalog request $url returned $code response; body was: ${StringUtils.abbreviate(json.noSpaces, 1000)}", retryAfter)
         }
       } else {
-        throw new IOException(s"Catalog request $url returned ${response.code} response; body was: ${StringUtils.abbreviate(response.body, 1000)}")
+        throw new HttpStatusException(code, s"Catalog request $url returned $code response; body was: ${StringUtils.abbreviate(response.body(), 1000)}", retryAfter)
       }
     } else {
-      val body = response.body // note: the HttpStatusException's message doesn't include the response body
+      val body = response.body()
 
       if (body.trim.isEmpty) {
-        throw new IOException(s"Catalog request $url returned ${response.code}; body was empty")
+        throw new IOException(s"Catalog request $url returned $code; body was empty")
       }
 
       body
