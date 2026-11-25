@@ -8,12 +8,12 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 import org.openeo.opensearch.OpenSearchResponses.CreoFeatureCollection
-import org.openeo.opensearch.backends.{CreodiasClient, OscarsClient, STACClient}
-import org.openeo.opensearch.{HttpRequest, OpenSearchClient, ZonedDateTimeOrdering}
+import org.openeo.opensearch.backends.{CreodiasClient, STACClient}
+import org.openeo.opensearch.{HttpRequest, OpenSearchClient}
 
 import java.net.URI
 import java.time.ZoneOffset.UTC
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{LocalDate, ZonedDateTime}
 import java.util
 import scala.collection.{Map, mutable}
 import scala.io.Source
@@ -48,47 +48,6 @@ class OpenSearchClientTest {
   @AfterEach def afterEach(): Unit = {
     HttpCache.enabled = httpsCacheEnabledOriginalValue
     HttpCache.randomErrorEnabled = httpsCacheRandomErrorEnabledOriginalValue
-  }
-
-  @Test
-  def testOscarsGetProducts(): Unit = {
-    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
-
-    val endDate = LocalDate.of(2026, 1, 1)
-    val features = openSearch.getProducts(
-      collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
-      (LocalDate.of(2025, 10, 3), endDate),
-      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover" -> 50.0, "resolution" -> 10), "hello", ""
-    )
-
-    println(s"got ${features.size} features")
-    assertTrue(features.size < 160)
-    assertTrue(features.nonEmpty)
-    val maxDate = features.map(_.nominalDate).max
-    assertTrue(maxDate.isBefore(endDate.atStartOfDay(ZoneId.of("UTC"))))
-
-  }
-
-  @Test
-  def testOscarsGetProductsSameDate(): Unit = {
-    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
-
-
-    val theDate = LocalDate.of(2024, 10, 3)
-    val features = openSearch.getProducts(
-      collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
-      (theDate, theDate),
-      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any]("eo:cloud_cover" -> 50.0, "resolution" -> 10), "hello", ""
-    )
-
-    println(s"got ${features.size} features")
-    assertTrue(features.size < 160)
-    assertTrue(features.nonEmpty)
-    val maxDate = features.map(_.nominalDate).max
-    assertTrue(maxDate.isBefore(theDate.plusDays(1).atStartOfDay(ZoneId.of("UTC"))))
-
   }
 
   @Disabled("API is officially down")
@@ -195,12 +154,6 @@ class OpenSearchClientTest {
     assertTrue(features.nonEmpty)
   }
 
-  @Test
-  def testOscarsGetCollections(): Unit = {
-    val client = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
-    checkGetCollections(client)
-  }
-
   @Disabled
   @Test
   def testCreoGetCollections(): Unit = {
@@ -229,43 +182,6 @@ class OpenSearchClientTest {
     assertEquals(features.size, unique.size)
   }
 
-
-  @Test
-  def testOscarsGetProductsWithEmptyDate(): Unit = {
-    val openSearch = OpenSearchClient(new URI("https://services.terrascope.be/catalogue").toURL)
-
-    val features = openSearch.getProducts(
-      collectionId = "urn:eop:VITO:COP_DEM_GLO_30M_COG",
-      None,
-      ProjectedExtent(Extent(2.688081576665092, 50.71625006623287, 5.838282906674661, 51.42339628212806), LatLng),
-      Map[String, Any](), "hello", ""
-    )
-
-    println(s"got ${features.size} features")
-    assertTrue(features.nonEmpty)
-  }
-
-  @Test
-  def testMultipageDedup(): Unit = {
-
-    val openSearch = new OscarsClient(new URI("https://services.terrascope.be/catalogue").toURL, false){
-      override protected def execute(request: HttpRequest): String = {
-        HttpCache.httpsCache.readString(request.url)
-      }
-    }
-
-    val features = openSearch.getProducts(
-      collectionId = "urn:eop:VITO:TERRASCOPE_S2_FAPAR_V2",
-      dateRange = Some((LocalDate.of(2020, 3, 1).atStartOfDay(UTC), LocalDate.of(2020, 4, 2).atStartOfDay(UTC))),
-      ProjectedExtent(Extent(2.6638244, 50.7186868, 5.1456951, 51.4703025), LatLng),
-      Map[String, Any]("count" -> "6"), // small enough pages that would trigger the error
-      "hello", ""
-    )
-
-    println(s"got ${features.size} features")
-    assertTrue(features.nonEmpty)
-    features.foreach(f => println(s"${f.id} - ${f.nominalDate} - ${f.tileID}"))
-  }
 
   @Disabled("API is officially down")
   @Test
